@@ -5,8 +5,10 @@ This example demonstrates one vertical feature slice for a customer requesting c
 It is intentionally small but includes the contracts that generated code often leaves implicit:
 
 - eligibility and ownership rules;
-- loading, stale, forbidden, conflict, pending, failure, and success states;
+- loading, stale, forbidden, conflict, pending, terminal-failure, and success states;
+- an authoritative cancellation-context query;
 - an idempotent command interface;
+- a durable operation-status query after `202 Accepted`;
 - UI-to-domain-to-test traceability;
 - semantic design-token additions rather than page-local styling.
 
@@ -16,7 +18,7 @@ It is intentionally small but includes the contracts that generated code often l
 2. Follow [`user-flow.md`](./user-flow.md) for alternate outcomes.
 3. Compare [`wireframe.md`](./wireframe.md) with [`screen-contract.yaml`](./screen-contract.yaml).
 4. Review [`design-system-decision.md`](./design-system-decision.md) and the reusable component contract.
-5. Review [`openapi.yaml`](./openapi.yaml) for the command and error contract.
+5. Review [`openapi.yaml`](./openapi.yaml) for the read model, command, durable status, and error contracts.
 6. Use [`traceability-matrix.md`](./traceability-matrix.md) to verify that visible behavior has backend and test support.
 
 This is a design and contract example, not a production order or payment implementation.

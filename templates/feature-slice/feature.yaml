@@ -35,10 +35,18 @@ surfaces:
     contract: screen-contract.yaml
 
 interfaces:
-  - id: feature-operation
+  - id: get-feature-surface
+    type: openapi
+    contract: openapi.yaml
+    operation_id: getFeatureSurface
+  - id: perform-feature-operation
     type: openapi
     contract: openapi.yaml
     operation_id: performFeatureOperation
+  - id: get-feature-operation
+    type: openapi
+    contract: openapi.yaml
+    operation_id: getFeatureOperation
 
 risks:
   - id: RISK-001

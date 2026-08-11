@@ -1,21 +1,36 @@
 openapi: 3.2.0
 info:
   title: Feature API
-  version: 0.1.0
-  summary: Contract supporting the feature screen.
+  version: 0.2.0
+  summary: Read, command, and durable operation contracts supporting the feature screen.
 servers:
   - url: https://api.example.test
 paths:
+  /features/{featureId}:
+    get:
+      operationId: getFeatureSurface
+      summary: Return the read model and capabilities required by the feature screen.
+      parameters:
+        - $ref: '#/components/parameters/FeatureId'
+      responses:
+        '200':
+          description: Feature surface read model.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureSurface'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/SystemError'
   /features/{featureId}/actions:
     post:
       operationId: performFeatureOperation
       summary: Perform the domain action for an eligible feature target.
       parameters:
-        - name: featureId
-          in: path
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/FeatureId'
         - name: Idempotency-Key
           in: header
           required: true
@@ -31,7 +46,13 @@ paths:
               $ref: '#/components/schemas/FeatureActionRequest'
       responses:
         '202':
-          description: Action accepted and processing state returned.
+          description: Action accepted; use the durable operation resource until a terminal state is reached.
+          headers:
+            Location:
+              description: Relative or absolute URL of the durable operation resource.
+              schema:
+                type: string
+                format: uri-reference
           content:
             application/json:
               schema:
@@ -44,13 +65,77 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/SystemError'
+  /feature-operations/{operationId}:
+    get:
+      operationId: getFeatureOperation
+      summary: Return the current durable state of an accepted feature operation.
+      parameters:
+        - name: operationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Current operation state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureActionReceipt'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/SystemError'
 components:
+  parameters:
+    FeatureId:
+      name: featureId
+      in: path
+      required: true
+      schema:
+        type: string
   schemas:
+    FeatureSurface:
+      type: object
+      additionalProperties: false
+      required:
+        - featureId
+        - version
+        - capabilities
+        - options
+      properties:
+        featureId:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+        capabilities:
+          type: array
+          items:
+            type: string
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeatureOption'
+    FeatureOption:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - label
+      properties:
+        code:
+          type: string
+        label:
+          type: string
     FeatureActionRequest:
       type: object
       additionalProperties: false
       required:
         - reasonCode
+        - expectedVersion
       properties:
         reasonCode:
           type: string
@@ -65,16 +150,30 @@ components:
       additionalProperties: false
       required:
         - operationId
+        - featureId
         - status
+        - acceptedAt
+        - updatedAt
         - traceId
       properties:
         operationId:
+          type: string
+        featureId:
           type: string
         status:
           type: string
           enum:
             - PENDING
             - COMPLETED
+            - FAILED
+        acceptedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        outcomeCode:
+          type: string
         traceId:
           type: string
     Error:
@@ -117,7 +216,13 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
     Forbidden:
-      description: Actor cannot perform the operation.
+      description: Actor cannot access or perform the operation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Requested resource is unavailable to the actor.
       content:
         application/json:
           schema:

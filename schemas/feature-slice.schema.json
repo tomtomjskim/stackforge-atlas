@@ -3,44 +3,193 @@
   "$id": "https://stackforge-atlas.dev/schemas/feature-slice.schema.json",
   "title": "StackForge Atlas Feature Slice",
   "type": "object",
-  "required": ["id", "name", "status", "risk", "problem", "scope", "actors", "invariants", "journeys", "surfaces", "interfaces", "risks", "gates", "owners"],
+  "required": [
+    "id",
+    "name",
+    "status",
+    "risk",
+    "problem",
+    "scope",
+    "actors",
+    "invariants",
+    "journeys",
+    "surfaces",
+    "interfaces",
+    "risks",
+    "gates",
+    "owners"
+  ],
   "properties": {
-    "id": {"type": "string", "minLength": 2},
-    "name": {"type": "string", "minLength": 2},
-    "status": {"enum": ["draft", "ready", "implementing", "verifying", "released", "retired"]},
-    "risk": {"enum": ["low", "medium", "high", "critical"]},
+    "id": {
+      "type": "string",
+      "minLength": 2
+    },
+    "name": {
+      "type": "string",
+      "minLength": 2
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "ready",
+        "implementing",
+        "verifying",
+        "released",
+        "retired"
+      ]
+    },
+    "risk": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
     "problem": {
       "type": "object",
-      "required": ["actor", "context", "pain", "outcome"],
+      "required": [
+        "actor",
+        "context",
+        "pain",
+        "outcome"
+      ],
       "properties": {
-        "actor": {"type": "string", "minLength": 1},
-        "context": {"type": "string", "minLength": 1},
-        "pain": {"type": "string", "minLength": 1},
-        "outcome": {"type": "string", "minLength": 1}
+        "actor": {
+          "type": "string",
+          "minLength": 1
+        },
+        "context": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "outcome": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "scope": {
       "type": "object",
-      "required": ["goals", "non_goals"],
+      "required": [
+        "goals",
+        "non_goals"
+      ],
       "properties": {
-        "goals": {"type": "array", "minItems": 1, "items": {"type": "string"}},
-        "non_goals": {"type": "array", "items": {"type": "string"}}
+        "goals": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "non_goals": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
-    "actors": {"type": "array", "minItems": 1},
-    "invariants": {"type": "array", "minItems": 1, "items": {"type": "string"}},
-    "journeys": {"type": "array", "minItems": 1},
-    "surfaces": {"type": "array", "minItems": 1},
-    "interfaces": {"type": "array", "minItems": 1},
-    "risks": {"type": "array"},
+    "actors": {
+      "type": "array",
+      "minItems": 1
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "journeys": {
+      "type": "array",
+      "minItems": 1
+    },
+    "surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "contract"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "contract": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "interfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "contract",
+          "operation_id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "type": {
+            "enum": [
+              "openapi",
+              "asyncapi"
+            ]
+          },
+          "contract": {
+            "type": "string",
+            "minLength": 1
+          },
+          "operation_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9]*$"
+          }
+        }
+      }
+    },
+    "risks": {
+      "type": "array"
+    },
     "gates": {
       "type": "object",
-      "required": ["required"],
-      "properties": {"required": {"type": "array", "minItems": 1, "items": {"type": "string"}}}
+      "required": [
+        "required"
+      ],
+      "properties": {
+        "required": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
     },
     "owners": {
       "type": "object",
-      "required": ["product", "design", "engineering", "operations"]
+      "required": [
+        "product",
+        "design",
+        "engineering",
+        "operations"
+      ]
     }
   }
 }

@@ -25,12 +25,43 @@ layout:
       priority: secondary
       purpose: Present validation, conflict, pending, completion, or recovery information
 
+data_dependencies:
+  - id: cancellation-context
+    operation_id: getOrderCancellationContext
+    consumers:
+      - order-summary
+      - cancellation-form
+    required_for:
+      - ready
+      - stale
+      - conflict
+    refresh:
+      strategy: on-demand
+      triggers:
+        - entry
+        - stale
+        - conflict
+  - id: cancellation-operation-status
+    operation_id: getOrderCancellation
+    consumers:
+      - cancellation-result
+    required_for:
+      - pending
+      - success
+      - terminal_error
+    refresh:
+      strategy: poll
+      activation: requestOrderCancellation:PENDING
+      stop_when:
+        - COMPLETED
+        - FAILED
+
 fields:
   - id: reason-code
     type: select
     required: true
     validation_owner: backend
-    data_source: getCancellationOptions
+    data_source: getOrderCancellationContext
   - id: reason-detail
     type: textarea
     required: false
@@ -68,9 +99,13 @@ states:
   conflict:
     behavior: Explain changed eligibility, refresh the order summary, and remove unsafe submission.
   submitting:
-    behavior: Disable repeated submission while allowing navigation only when the durable receipt is known.
+    behavior: Disable repeated submission while waiting for an accepted receipt or definitive rejection.
+  pending:
+    behavior: Show the durable cancellation reference and continue bounded status refresh without resubmitting.
+  terminal_error:
+    behavior: Show the final safe failure reason, support reference, and any allowed recovery action.
   success:
-    behavior: Show completed or pending status, operation reference, financial effect summary, and next action.
+    behavior: Show completed status, financial effect summary, and the next useful action.
 
 responsive:
   narrow:

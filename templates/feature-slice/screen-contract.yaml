@@ -25,12 +25,41 @@ layout:
       priority: secondary
       purpose: Present validation, pending, success, and recovery information
 
+data_dependencies:
+  - id: feature-surface
+    operation_id: getFeatureSurface
+    consumers:
+      - summary
+      - action-form
+    required_for:
+      - ready
+    refresh:
+      strategy: on-demand
+      triggers:
+        - entry
+        - stale
+        - conflict
+  - id: feature-operation-status
+    operation_id: getFeatureOperation
+    consumers:
+      - feedback
+    required_for:
+      - pending
+      - success
+      - terminal_error
+    refresh:
+      strategy: poll
+      activation: performFeatureOperation:PENDING
+      stop_when:
+        - COMPLETED
+        - FAILED
+
 fields:
   - id: reason-code
     type: select
     required: true
     validation_owner: backend
-    data_source: getFeatureOptions
+    data_source: getFeatureSurface
 
 actions:
   - id: submit-feature
@@ -64,6 +93,10 @@ states:
     behavior: Explain that the object changed and offer a refresh path.
   submitting:
     behavior: Prevent duplicate submission while preserving cancellation when safe.
+  pending:
+    behavior: Show the durable operation reference and continue bounded status refresh.
+  terminal_error:
+    behavior: Show a stable failure outcome, safe reference, and supported recovery path.
   success:
     behavior: Confirm the changed state, move focus to confirmation, and expose the next action.
 
@@ -86,6 +119,7 @@ accessibility:
 telemetry:
   outcome_events:
     - feature_action_started
+    - feature_action_accepted
     - feature_action_completed
     - feature_action_failed
   prohibited_data:

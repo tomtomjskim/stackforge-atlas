@@ -45,10 +45,18 @@ surfaces:
     contract: screen-contract.yaml
 
 interfaces:
+  - id: get-order-cancellation-context
+    type: openapi
+    contract: openapi.yaml
+    operation_id: getOrderCancellationContext
   - id: request-order-cancellation
     type: openapi
     contract: openapi.yaml
     operation_id: requestOrderCancellation
+  - id: get-order-cancellation
+    type: openapi
+    contract: openapi.yaml
+    operation_id: getOrderCancellation
 
 risks:
   - id: RISK-DUPLICATE
