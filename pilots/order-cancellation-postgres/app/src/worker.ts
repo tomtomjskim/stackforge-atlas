@@ -110,6 +110,7 @@ export class PostgresOutboxWorker {
             SELECT id
             FROM outbox_events
             WHERE published_at IS NULL
+              AND reconciliation_required_at IS NULL
               AND available_at <= clock_timestamp()
               AND (
                 locked_at IS NULL
@@ -144,7 +145,12 @@ export class PostgresOutboxWorker {
   }
 
   async runOnce(): Promise<
-    "idle" | "completed" | "failed" | "retry_scheduled" | "lease_lost"
+    | "idle"
+    | "completed"
+    | "failed"
+    | "retry_scheduled"
+    | "reconciliation_required"
+    | "lease_lost"
   > {
     const event = await this.claimNext();
     if (!event) {
@@ -295,7 +301,9 @@ export class PostgresOutboxWorker {
   async #scheduleRetry(
     event: OutboxEvent,
     message: string,
-  ): Promise<"retry_scheduled" | "failed" | "lease_lost"> {
+  ): Promise<
+    "retry_scheduled" | "reconciliation_required" | "lease_lost"
+  > {
     return withTransaction(this.#pool, async (client) => {
       const owned = await this.#lockOwnedEvent(client, event);
       if (!owned) {
@@ -346,34 +354,20 @@ export class PostgresOutboxWorker {
           `
             UPDATE order_cancellations
             SET
-              status = 'FAILED',
-              outcome_code = 'PROVIDER_RETRY_EXHAUSTED',
+              outcome_code = 'RECONCILIATION_REQUIRED',
               updated_at = clock_timestamp()
             WHERE id = $1
           `,
           [cancellation.id],
         );
-        await client.query(
-          `
-            UPDATE orders
-            SET
-              payment_status = 'PAID',
-              cancellation_id = NULL,
-              version = version + 1,
-              updated_at = clock_timestamp()
-            WHERE id = $1
-              AND cancellation_id = $2
-          `,
-          [cancellation.order_id, cancellation.id],
-        );
         await this.#insertAudit(client, {
-          eventId: `audit_failed_${cancellation.id}`,
+          eventId: `audit_reconciliation_${cancellation.id}`,
           actorType: "SYSTEM",
           actorId: this.#workerId,
-          action: "ORDER_CANCELLATION_FAILED",
+          action: "ORDER_CANCELLATION_RECONCILIATION_REQUIRED",
           objectId: cancellation.order_id,
-          result: "FAILED",
-          reasonCode: "PROVIDER_RETRY_EXHAUSTED",
+          result: "PENDING",
+          reasonCode: "PROVIDER_STATUS_UNKNOWN",
           traceId: cancellation.trace_id,
           cancellationId: cancellation.id,
         });
@@ -383,7 +377,7 @@ export class PostgresOutboxWorker {
         `
           UPDATE outbox_events
           SET
-            published_at = clock_timestamp(),
+            reconciliation_required_at = clock_timestamp(),
             locked_by = NULL,
             locked_at = NULL,
             last_error = $2,
@@ -392,7 +386,7 @@ export class PostgresOutboxWorker {
         `,
         [event.id, message.slice(0, 500)],
       );
-      return "failed";
+      return "reconciliation_required";
     });
   }
 
