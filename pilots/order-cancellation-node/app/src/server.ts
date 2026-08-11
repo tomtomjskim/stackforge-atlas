@@ -56,13 +56,27 @@ async function shutdown(signal: string): Promise<void> {
   }
   shuttingDown = true;
   console.log(JSON.stringify({ event: "server.stopping", signal }));
-  await Promise.all([
-    new Promise<void>((resolve, reject) =>
-      server.close((error) => (error ? reject(error) : resolve())),
-    ),
-    service.drain(),
-  ]);
+
+  await new Promise<void>((resolve, reject) =>
+    server.close((error) => (error ? reject(error) : resolve())),
+  );
+  await service.drain();
+
+  console.log(JSON.stringify({ event: "server.stopped", signal }));
 }
 
-process.once("SIGINT", () => void shutdown("SIGINT"));
-process.once("SIGTERM", () => void shutdown("SIGTERM"));
+function handleSignal(signal: string): void {
+  void shutdown(signal).catch((error: unknown) => {
+    console.error(
+      JSON.stringify({
+        event: "server.shutdown_failed",
+        signal,
+        message: error instanceof Error ? error.message : "Unknown shutdown failure",
+      }),
+    );
+    process.exitCode = 1;
+  });
+}
+
+process.once("SIGINT", () => handleSignal("SIGINT"));
+process.once("SIGTERM", () => handleSignal("SIGTERM"));
