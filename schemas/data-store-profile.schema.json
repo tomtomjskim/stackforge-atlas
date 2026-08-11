@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stackforge-atlas.dev/schemas/data-store-profile.schema.json",
+  "title": "StackForge Atlas Data Store Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "version",
+    "status",
+    "review",
+    "engine",
+    "deployment",
+    "capabilities",
+    "fit",
+    "agent_guidance",
+    "evidence"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "version": { "type": "integer", "minimum": 1 },
+    "status": {
+      "enum": [
+        "pilot",
+        "recommended",
+        "situational",
+        "legacy-supported",
+        "migration-only",
+        "avoid"
+      ]
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reviewed_at", "review_due", "owner"],
+      "properties": {
+        "reviewed_at": { "type": "string", "format": "date" },
+        "review_due": { "type": "string", "format": "date" },
+        "owner": { "type": "string", "minLength": 2 }
+      }
+    },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version_line", "tested_minor", "support_status"],
+      "properties": {
+        "name": { "type": "string", "minLength": 2 },
+        "version_line": { "type": "string", "minLength": 1 },
+        "tested_minor": { "type": "string", "minLength": 1 },
+        "support_status": { "type": "string", "minLength": 2 }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pilot_image", "production_default"],
+      "properties": {
+        "pilot_image": { "type": ["string", "null"] },
+        "production_default": { "type": ["string", "null"] }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transactions", "concurrency", "integration", "audit", "recovery"],
+      "properties": {
+        "transactions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["default_isolation", "tested_patterns"],
+          "properties": {
+            "default_isolation": { "type": "string" },
+            "tested_patterns": { "$ref": "#/$defs/strings" }
+          }
+        },
+        "concurrency": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tested_patterns"],
+          "properties": {
+            "tested_patterns": { "$ref": "#/$defs/strings" }
+          }
+        },
+        "integration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tested_patterns"],
+          "properties": {
+            "tested_patterns": { "$ref": "#/$defs/strings" }
+          }
+        },
+        "audit": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tested_patterns"],
+          "properties": {
+            "tested_patterns": { "$ref": "#/$defs/strings" }
+          }
+        },
+        "recovery": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tested_patterns", "not_tested"],
+          "properties": {
+            "tested_patterns": { "$ref": "#/$defs/strings" },
+            "not_tested": { "$ref": "#/$defs/strings" }
+          }
+        }
+      }
+    },
+    "fit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strong", "weak", "avoid_when"],
+      "properties": {
+        "strong": { "$ref": "#/$defs/strings" },
+        "weak": { "$ref": "#/$defs/strings" },
+        "avoid_when": { "$ref": "#/$defs/strings" }
+      }
+    },
+    "agent_guidance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mandatory_checks", "common_failures", "context_files"],
+      "properties": {
+        "mandatory_checks": { "$ref": "#/$defs/strings" },
+        "common_failures": { "$ref": "#/$defs/strings" },
+        "context_files": { "$ref": "#/$defs/strings" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pilot", "sources", "confidence"],
+      "properties": {
+        "pilot": { "type": "string", "minLength": 1 },
+        "sources": { "type": "array", "items": { "type": "string", "format": "uri" } },
+        "confidence": { "enum": ["low", "medium", "high"] }
+      }
+    }
+  },
+  "$defs": {
+    "strings": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

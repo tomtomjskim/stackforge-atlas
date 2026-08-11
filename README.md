@@ -13,11 +13,11 @@
 <p align="center">
   <a href="./docs/START-HERE.md"><strong>Start here</strong></a>
   ·
+  <a href="./pilots/order-cancellation-postgres/README.md">Durability pilot</a>
+  ·
   <a href="./pilots/order-cancellation-node/README.md">Runnable pilot</a>
   ·
   <a href="./templates/feature-slice/README.md">Feature slice kit</a>
-  ·
-  <a href="./examples/order-cancellation/README.md">Contract example</a>
 </p>
 
 ---
@@ -72,13 +72,13 @@ A feature is ready to build only when its meaningful states and interface bounda
   </tr>
 </table>
 
-## The first runnable proof
+## From runnable to durable
 
-The initial contract foundation now has a working implementation checkpoint. The Node.js pilot carries one order-cancellation feature from screen states and an OpenAPI contract into a browser surface, protected domain transition, durable operation result, and executable tests.
+The first Node.js pilot proved that one order-cancellation contract could remain visible through a browser surface, HTTP boundary, protected transition, and executable tests. The PostgreSQL pilot now changes the persistence boundary without redesigning the product.
 
-It is intentionally honest about its boundary: the pilot proves traceability and behavior inside a small process. It does not present fixture authentication or in-memory persistence as production architecture.
+It verifies that accepted state, idempotency identity, outbox work, and audit evidence commit together; that workers can reclaim abandoned work; and that duplicate delivery converges through a stable provider identity. It also records what remains unproven: database restart, backup restore, failover, and a real provider contract.
 
-Explore the [runnable pilot](./pilots/order-cancellation-node/README.md), review its [project map](./pilots/order-cancellation-node/project-map.yaml), or inspect the [evaluation case](./pilots/order-cancellation-node/evaluation/eval-case.yaml).
+Explore the [PostgreSQL durability pilot](./pilots/order-cancellation-postgres/README.md), compare it with the [in-memory runnable pilot](./pilots/order-cancellation-node/README.md), or read the [cross-stack protocol](./docs/CROSS-STACK-PILOTS.md).
 
 ## Working principles
 
@@ -88,6 +88,6 @@ StackForge Atlas deliberately keeps the always-on agent rules small. Detailed gu
 
 ## Project status
 
-The repository is in its cross-stack pilot stage. The current work is to repeat the same product and interface contract across language, persistence, and maintenance contexts, then promote only failures that recur into shared rules.
+The repository is in its durability-pilot stage. The next work is to exercise PostgreSQL restart, migration, backup, and recovery procedures; then repeat the same outcomes on MySQL and additional language stacks before promoting database-specific guidance.
 
-Begin with the [guided entry point](./docs/START-HERE.md), run the [Node.js pilot](./pilots/order-cancellation-node/README.md), and read the [pilot protocol](./docs/CROSS-STACK-PILOTS.md) before adding another stack.
+Begin with the [guided entry point](./docs/START-HERE.md), run the [durability pilot](./pilots/order-cancellation-postgres/README.md), and inspect the [PostgreSQL profile](./packs/data-stores/postgresql/README.md) before adding another persistence strategy.

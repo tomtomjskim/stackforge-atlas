@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: postgres:18.4
+    environment:
+      POSTGRES_DB: stackforge
+      POSTGRES_USER: stackforge
+      POSTGRES_PASSWORD: stackforge
+    ports:
+      - "55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stackforge -d stackforge"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - postgres-data:/var/lib/postgresql
+
+  app:
+    image: node:24-bookworm-slim
+    working_dir: /workspace/pilots/order-cancellation-postgres/app
+    command: >
+      sh -c "npm ci --ignore-scripts --no-audit --no-fund
+      && npm run migrate
+      && npm run seed
+      && npm start"
+    environment:
+      DATABASE_URL: postgresql://stackforge:stackforge@postgres:5432/stackforge
+      PORT: "3000"
+    ports:
+      - "3001:3000"
+    volumes:
+      - ../..:/workspace
+      - postgres-app-node-modules:/workspace/pilots/order-cancellation-postgres/app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    image: node:24-bookworm-slim
+    working_dir: /workspace/pilots/order-cancellation-postgres/app
+    command: >
+      sh -c "npm ci --ignore-scripts --no-audit --no-fund
+      && npm run migrate
+      && npm run worker"
+    environment:
+      DATABASE_URL: postgresql://stackforge:stackforge@postgres:5432/stackforge
+      WORKER_ID: compose-worker
+    volumes:
+      - ../..:/workspace
+      - postgres-worker-node-modules:/workspace/pilots/order-cancellation-postgres/app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  postgres-app-node-modules:
+  postgres-worker-node-modules:

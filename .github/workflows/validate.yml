@@ -27,8 +27,11 @@ jobs:
         run: |
           python scripts/validate_atlas.py
           python scripts/validate_pilots.py
-      - name: Reject known pilot metadata regressions
-        run: python scripts/test_validate_pilot_regressions.py
+          python scripts/validate_durability_pilots.py
+      - name: Reject known metadata regressions
+        run: |
+          python scripts/test_validate_pilot_regressions.py
+          python scripts/test_validate_durability_regressions.py
 
   node-pilot:
     runs-on: ubuntu-latest
@@ -48,3 +51,44 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Type-check and test runnable pilot
         run: npm run check
+
+  postgres-pilot:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_DB: stackforge
+          POSTGRES_USER: stackforge
+          POSTGRES_PASSWORD: stackforge
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U stackforge -d stackforge"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      DATABASE_URL: postgresql://stackforge:stackforge@127.0.0.1:5432/stackforge
+    defaults:
+      run:
+        working-directory: pilots/order-cancellation-postgres/app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Install pilot dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Apply migrations
+        run: npm run migrate
+      - name: Type-check and test PostgreSQL durability pilot
+        run: npm run check
+      - name: Upload generated lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: order-cancellation-postgres-lockfile
+          path: pilots/order-cancellation-postgres/app/package-lock.json
+          retention-days: 1

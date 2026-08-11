@@ -1,0 +1,56 @@
+version: 1
+contract: ../../examples/order-cancellation/openapi.yaml
+screen_contract: ../../examples/order-cancellation/screen-contract.yaml
+coverage: exact
+runtime:
+  id: node-postgresql
+  version_line: '24/18'
+operations:
+  - operation_id: getOrderCancellationContext
+    method: GET
+    path: /orders/{orderId}/cancellation-context
+    handler: app/src/http.ts#getOrderCancellationContext
+    evidence:
+      - app/test/http.test.ts#PostgreSQL HTTP contract survives worker handoff and durable status lookup
+      - app/test/database.test.ts#accepted command atomically persists order transition, outbox, and audit evidence
+  - operation_id: requestOrderCancellation
+    method: POST
+    path: /orders/{orderId}/cancellations
+    handler: app/src/http.ts#requestOrderCancellation
+    evidence:
+      - app/test/database.test.ts#same idempotency key replays across transactions while changed payload conflicts
+      - app/test/database.test.ts#concurrent distinct keys accept one protected transition and one outbox event
+      - app/test/retry.test.ts#terminal provider failure releases the order for a new versioned attempt
+      - app/test/http.test.ts#PostgreSQL HTTP contract survives worker handoff and durable status lookup
+  - operation_id: getOrderCancellation
+    method: GET
+    path: /order-cancellations/{cancellationId}
+    handler: app/src/http.ts#getOrderCancellation
+    evidence:
+      - app/test/database.test.ts#accepted operation survives application instance restart and completes from persisted outbox
+      - app/test/database.test.ts#expired worker lease recovers after provider effect without duplicating the effect row
+ui:
+  entrypoint: ../order-cancellation-node/app/public/index.html
+  state_coverage: accounted
+  implemented_states:
+    - initial
+    - loading
+    - ready
+    - validation_error
+    - system_error
+    - forbidden
+    - conflict
+    - submitting
+    - pending
+    - terminal_error
+    - success
+  deferred_states:
+    - state: empty
+      reason: The seeded persistence fixture always returns authoritative cancellation reasons; an empty-option database fixture remains separate work.
+    - state: partial
+      reason: The cancellation context is one PostgreSQL read model in this pilot, so dependency failure maps to system_error rather than a partial representation.
+    - state: stale
+      reason: There is no push freshness channel; stale order versions are detected transactionally at command submission and rendered through conflict recovery.
+  evidence:
+    - ../order-cancellation-node/app/public/app.js
+    - app/test/http.test.ts#PostgreSQL HTTP boundary serves shared UI, database health, and stable auth errors

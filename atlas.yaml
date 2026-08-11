@@ -1,7 +1,7 @@
 name: StackForge Atlas
 id: stackforge-atlas
-version: 0.2.0
-status: cross-stack-pilot
+version: 0.3.0
+status: durability-pilot
 summary: Evidence-backed software engineering guidance and a lightweight agent harness for web applications.
 
 outcomes:
@@ -10,6 +10,7 @@ outcomes:
   - apply risk-proportional verification and adversarial review
   - maintain source maps, decisions, and runbooks close to code
   - compare stacks and harness modes without changing the product contract
+  - distinguish runnable, durable, operational, and comparative evidence
 
 capabilities:
   product_interface:
@@ -23,6 +24,7 @@ capabilities:
     - implementation planning
     - project maps
     - implementation manifests
+    - durability manifests
     - verification evidence
     - adversarial review
     - maintenance knowledge
@@ -30,6 +32,7 @@ capabilities:
     - reusable eval cases
     - runnable cross-stack pilots
     - contract-to-code drift checks
+    - transaction and recovery evidence
     - harness-mode comparison protocol
   expansion:
     - language profiles
@@ -52,11 +55,16 @@ entrypoints:
   feature_template: templates/feature-slice/README.md
   project_map_template: templates/project-map/project-map.yaml
   evaluation_template: templates/evaluation/eval-case.yaml
+  data_store_template: templates/data-store/profile.yaml
   contract_example: examples/order-cancellation/README.md
   runnable_pilot: pilots/order-cancellation-node/README.md
+  durability_pilot: pilots/order-cancellation-postgres/README.md
   language_profile: packs/languages/typescript-node/README.md
+  data_store_profile: packs/data-stores/postgresql/README.md
 
 validation:
   atlas_command: python scripts/validate_atlas.py
   pilot_metadata_command: python scripts/validate_pilots.py
-  pilot_command: cd pilots/order-cancellation-node/app && npm run check
+  durability_metadata_command: python scripts/validate_durability_pilots.py
+  node_pilot_command: cd pilots/order-cancellation-node/app && npm run check
+  postgres_pilot_command: cd pilots/order-cancellation-postgres/app && npm run check
