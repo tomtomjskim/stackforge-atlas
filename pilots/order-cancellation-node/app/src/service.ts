@@ -86,6 +86,13 @@ function normalizeRequest(value: unknown): CancellationRequest {
 
   const body = value as Record<string, unknown>;
   const fieldErrors: FieldError[] = [];
+  const allowedFields = new Set(["reasonCode", "reasonDetail", "expectedVersion"]);
+
+  for (const field of Object.keys(body)) {
+    if (!allowedFields.has(field)) {
+      fieldErrors.push({ field, code: "UNKNOWN_FIELD" });
+    }
+  }
 
   if (!isReasonCode(body.reasonCode)) {
     fieldErrors.push({ field: "reasonCode", code: "INVALID_REASON" });
