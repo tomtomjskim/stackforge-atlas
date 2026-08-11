@@ -368,8 +368,6 @@ export class PostgresOrderCancellationService {
 
       const cancellationId = `cancel_${randomUUID()}`;
       const eventId = `outbox_${randomUUID()}`;
-      const acceptedAt = new Date();
-
       const inserted = await client.query(
         `
           INSERT INTO order_cancellations(
@@ -385,7 +383,10 @@ export class PostgresOrderCancellationService {
             updated_at,
             trace_id
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING', $8, $8, $9)
+          VALUES (
+            $1, $2, $3, $4, $5, $6, $7, 'PENDING',
+            clock_timestamp(), clock_timestamp(), $8
+          )
           RETURNING
             id,
             order_id,
@@ -407,7 +408,6 @@ export class PostgresOrderCancellationService {
           fingerprint,
           request.reasonCode,
           request.reasonDetail ?? null,
-          acceptedAt,
           traceId,
         ],
       );
@@ -425,6 +425,15 @@ export class PostgresOrderCancellationService {
         [order.id, cancellationId],
       );
 
+      const outboxPayload = JSON.stringify({
+        cancellationId,
+        orderId: order.id,
+        customerId: input.actorId,
+        amountMinor: Number(order.amount_minor),
+        currency: order.currency,
+        traceId,
+      });
+
       await client.query(
         `
           INSERT INTO outbox_events(
@@ -440,28 +449,14 @@ export class PostgresOrderCancellationService {
             'order_cancellation',
             $2,
             'order.cancellation.requested',
-            jsonb_build_object(
-              'cancellationId', $2,
-              'orderId', $3,
-              'customerId', $4,
-              'amountMinor', $5::bigint,
-              'currency', $6,
-              'traceId', $7
-            ),
+            $3::jsonb,
             clock_timestamp()
           )
         `,
-        [
-          eventId,
-          cancellationId,
-          order.id,
-          input.actorId,
-          order.amount_minor,
-          order.currency,
-          traceId,
-        ],
+        [eventId, cancellationId, outboxPayload],
       );
 
+      const auditMetadata = JSON.stringify({ cancellationId });
       await client.query(
         `
           INSERT INTO audit_events(
@@ -486,7 +481,7 @@ export class PostgresOrderCancellationService {
             'ACCEPTED',
             $4,
             $5,
-            jsonb_build_object('cancellationId', $6)
+            $6::jsonb
           )
         `,
         [
@@ -495,7 +490,7 @@ export class PostgresOrderCancellationService {
           order.id,
           request.reasonCode,
           traceId,
-          cancellationId,
+          auditMetadata,
         ],
       );
 
