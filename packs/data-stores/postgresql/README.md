@@ -1,31 +1,57 @@
 # PostgreSQL Profile
 
-This profile records PostgreSQL-specific implementation guidance only after it has executable pilot evidence. It does not make PostgreSQL the automatic default for every web application.
+This profile records PostgreSQL-specific guidance only after the repository has executable evidence. It does not make PostgreSQL the automatic default for every web application.
 
-## Current pilot baseline
+## Current evidence baseline
 
 ```text
 PostgreSQL 18.4
 Node.js 24
-node-postgres 8
 Read Committed
-row-level order lock
-transactional outbox
+row and advisory locks
+transactional Outbox
 SKIP LOCKED worker lease
-append-only audit table
+unknown-outcome reconciliation
+append-only audit evidence
+SIGQUIT recovery on persistent storage
+retained-data forward migration
+guarded down migration
+custom-format backup and independent restore
 ```
 
-The reference implementation is the [order-cancellation durability pilot](../../../pilots/order-cancellation-postgres/README.md).
+The reference implementation is the [order-cancellation PostgreSQL pilot](../../../pilots/order-cancellation-postgres/README.md). Its [operational manifest](../../../pilots/order-cancellation-postgres/operational/manifest.yaml) and [runbook](../../../pilots/order-cancellation-postgres/operational/runbook.md) state exactly what the drill does and does not prove.
+
+## Evidence now available
+
+- local transaction and rollback behavior against PostgreSQL;
+- concurrent command and worker claims;
+- application-instance and PostgreSQL-process replacement with intact persistent storage;
+- unknown-provider quarantine and explicit operator resolution;
+- migration 002 applied over retained migration 001 data;
+- guarded down migration in an isolated pre-002 restore;
+- `pg_dump` custom archive restored into an independent PostgreSQL volume;
+- compared business, migration, audit, and reconciliation evidence;
+- observed restart and restore timing captured as drill evidence.
+
+## Still separate gates
+
+- storage or host loss;
+- corruption recovery;
+- continuous WAL archiving and point-in-time recovery;
+- replication and automated failover;
+- production backup encryption and retention;
+- production RPO/RTO objectives;
+- real provider status reconciliation;
+- sustained contention, vacuum, and pool-capacity tests.
 
 ## What belongs in this profile
 
 - transaction and isolation behavior that changes implementation decisions;
 - constraints and indexes that enforce domain invariants;
-- concurrency and retry requirements;
-- migration, rollback, backup, and recovery procedures;
-- outbox, lease, and CDC patterns;
+- concurrency, retry, lease, and reconciliation requirements;
+- migration, rollback, backup, restore, and recovery procedures;
 - PostgreSQL-specific operational failure modes;
-- evidence that demonstrates the guidance.
+- executable evidence that demonstrates each claim.
 
 ## What does not belong here
 
@@ -33,6 +59,6 @@ The reference implementation is the [order-cancellation durability pilot](../../
 - popularity rankings presented as architecture decisions;
 - unverified tuning values;
 - claims that `SKIP LOCKED`, serializable isolation, partitioning, or JSONB are universal defaults;
-- production recommendations copied from an in-memory or single-process test.
+- a full Operational claim based on one single-node recovery drill.
 
-The profile remains `pilot` until database restart, backup/restore, migration, and operational monitoring evidence are added.
+The profile remains `pilot` until WAL/PITR, storage-loss, replication/failover, production security, and realistic operational-load evidence are added.

@@ -14,7 +14,18 @@ Each pilot must provide:
 6. stack-native type, test, and verification commands;
 7. an adversarial statement of what the pilot does not prove.
 
-A persistence pilot also provides a durability manifest covering migrations, transaction boundaries, outbox delivery, recovery, audit behavior, and explicit limitations.
+A persistence pilot also provides a durability manifest covering migrations, transaction boundaries, Outbox delivery, recovery, audit behavior, and explicit limitations.
+
+An operational-recovery pilot adds:
+
+- an executable destructive drill isolated from development data;
+- a machine-readable manifest and generated report;
+- recovery-point and recovery-time assertions;
+- retained-data migration and rollback evidence;
+- backup and restore comparison;
+- observable unresolved work and an operator resolution path;
+- a runbook and alert conditions;
+- a precise statement of which failure domain was not exercised.
 
 ## Comparison rule
 
@@ -35,6 +46,7 @@ Allow to vary
 - transaction and locking strategy
 - data-store constraints
 - worker claim strategy
+- backup and recovery mechanism
 - test tools
 - runtime lifecycle
 - deployment packaging
@@ -48,20 +60,22 @@ Allow to vary
 | Runnable | The implementation starts and exposes the declared boundary. |
 | Verified | Automated tests exercise domain and interface behavior. |
 | Durable | Accepted state and unfinished work survive application-instance replacement. |
-| Operational | Database restart, backup/restore, deployment, observability, and rollback are exercised. |
+| Operational-recovery subset | A named database failure and restore procedure are executed with measured evidence and explicit failure-domain limits. |
+| Operational | Production-relevant restart, backup/restore, deployment, monitoring, rollback, and required failure domains are exercised. |
 | Comparative | Repeated runs across harness modes or stacks produce measured results. |
 
-A pilot must not claim a higher level because a lower-level validator passed. Durable does not imply Operational, and transactional outbox does not imply exactly-once external delivery.
+A pilot must not claim a higher level because a lower-level validator passed. Durable does not imply Operational, logical restore does not imply PITR, and transactional Outbox does not imply exactly-once external delivery.
 
 ## Current sequence
 
 1. TypeScript / Node.js greenfield runnable pilot — completed
 2. PostgreSQL transaction and durability pilot — completed at the Durable subset
-3. PostgreSQL server restart, backup/restore, and migration drill
-4. MySQL pilot preserving outcomes with engine-native implementation
-5. Python port of the shared contract
-6. PHP modern and legacy runtime variants
-7. Existing-codebase maintenance task using the same evaluation case
-8. Controlled harness-mode comparisons
+3. PostgreSQL retained-volume restart, forward migration, guarded rollback, logical restore, and operator reconciliation — completed at an Operational-recovery subset
+4. PostgreSQL WAL archive and point-in-time recovery drill
+5. MySQL pilot preserving outcomes with engine-native implementation and recovery evidence
+6. Python port of the shared contract
+7. PHP modern and legacy runtime variants
+8. Existing-codebase maintenance task using the same evaluation case
+9. Controlled harness-mode comparisons
 
 Rules should be promoted into `core/` only after a failure repeats across more than one stack, data store, or project shape.

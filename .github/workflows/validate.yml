@@ -28,10 +28,12 @@ jobs:
           python scripts/validate_atlas.py
           python scripts/validate_pilots.py
           python scripts/validate_durability_pilots.py
+          python scripts/validate_operational_recovery.py
       - name: Reject known metadata regressions
         run: |
           python scripts/test_validate_pilot_regressions.py
           python scripts/test_validate_durability_regressions.py
+          python scripts/test_validate_operational_recovery_regressions.py
 
   node-pilot:
     runs-on: ubuntu-latest
@@ -88,3 +90,33 @@ jobs:
         run: npm run migrate
       - name: Type-check and test PostgreSQL durability pilot
         run: npm run check
+
+  postgres-operational-recovery:
+    runs-on: ubuntu-latest
+    env:
+      OPERATIONAL_EVIDENCE_DIR: ${{ runner.temp }}/stackforge-postgres-operational-recovery
+      POSTGRES_IMAGE: postgres:18.4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: pilots/order-cancellation-postgres/app/package-lock.json
+      - name: Install locked PostgreSQL pilot dependencies
+        working-directory: pilots/order-cancellation-postgres/app
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run PostgreSQL operational recovery drill
+        run: bash pilots/order-cancellation-postgres/operational/run-recovery-drill.sh
+      - name: Verify operational report exists
+        run: test -s "$OPERATIONAL_EVIDENCE_DIR/operational-recovery-report.json"
+      - name: Upload operational-recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgres-operational-recovery-evidence
+          path: ${{ runner.temp }}/stackforge-postgres-operational-recovery
+          if-no-files-found: error
+          retention-days: 7

@@ -1,5 +1,5 @@
 id: postgresql
-version: 1
+version: 2
 status: pilot
 review:
   reviewed_at: '2026-08-11'
@@ -20,6 +20,7 @@ capabilities:
       - row-level order lock with SELECT FOR UPDATE
       - actor-scoped transaction advisory lock for idempotency serialization
       - atomic order, operation, outbox, and audit writes
+      - operator reconciliation transaction over case, cancellation, outbox, order, and audit state
   concurrency:
     tested_patterns:
       - unique constraints and a partial unique index as final invariant protection
@@ -29,28 +30,35 @@ capabilities:
     tested_patterns:
       - transactional outbox
       - at-least-once delivery with provider idempotency
+      - unknown-outcome quarantine and authoritative operator resolution
   audit:
     tested_patterns:
       - append-only audit table enforced by trigger
+      - operator reconciliation evidence linked by trace and cancellation identity
   recovery:
     tested_patterns:
       - application pool replacement
+      - PostgreSQL immediate shutdown and WAL recovery on the same persistent volume
       - abandoned worker lease recovery
+      - retained-data forward migration
+      - guarded down migration before migration-specific rows exist
+      - custom-format logical backup and independent-volume restore comparison
       - explicit terminal failure followed by a new versioned attempt
-      - unknown external outcome quarantined for reconciliation
+      - unknown external outcome quarantined and resolved through an operator command
     not_tested:
-      - PostgreSQL server restart
-      - point-in-time recovery
-      - backup restore
-      - replication and failover
+      - host or storage loss and corruption recovery
+      - continuous WAL archiving and point-in-time recovery
+      - replication and automated failover
+      - production RPO and RTO objectives
+      - encrypted backup storage and key rotation
 fit:
   strong:
     - Transactional web systems where relational invariants and concurrent state transitions matter
     - Durable job and outbox workflows that benefit from one operational data store at moderate scale
-    - Systems requiring constraints, explicit locks, rich SQL, and mature recovery tooling
+    - Systems requiring constraints, explicit locks, rich SQL, migration controls, and mature recovery tooling
   weak:
     - Workloads whose primary access pattern is an unbounded high-volume event stream
-    - Teams without ownership for migrations, backups, vacuum, connection limits, and minor upgrades
+    - Teams without ownership for migrations, backups, vacuum, connection limits, minor upgrades, and recovery drills
   avoid_when:
     - The application cannot tolerate operating a stateful relational system or managed equivalent
     - The data model and consistency requirement are not understood and PostgreSQL is being selected only by popularity
@@ -62,7 +70,10 @@ agent_guidance:
     - Define lock order, timeout, retry, and deadlock behavior for concurrent writes.
     - Treat worker delivery as at-least-once unless a stronger guarantee is proven end to end.
     - Distinguish explicit provider rejection from unknown transport outcome; quarantine and reconcile the latter.
-    - Exercise migration, rollback, restart, backup, and restore separately before claiming operational readiness.
+    - Apply migrations over retained data and state the point after which down migration is no longer safe.
+    - Restore backups into an independent database and compare migration plus domain evidence.
+    - Record observed recovery timings as drill evidence, not production SLOs.
+    - Exercise WAL archiving, PITR, replication, failover, and storage-loss recovery separately before claiming full operational readiness.
   common_failures:
     - Using pool-level queries inside a multi-statement transaction
     - Checking state and updating it without a lock, conditional update, or serializable retry policy
@@ -70,11 +81,16 @@ agent_guidance:
     - Using SKIP LOCKED without a lease or abandoned-work recovery
     - Assuming an outbox makes the external side effect exactly once
     - Declaring a terminal failure after timeout retries without checking or reconciling provider state
+    - Running a down migration after new schema-owned data has been created
+    - Treating a successful pg_dump command as proof that restore works
+    - Treating one container restart as proof of host-loss or failover recovery
     - Adding indexes without a concrete query and write-cost analysis
     - Treating JSONB payloads as a substitute for relational constraints
   context_files:
     - pilots/order-cancellation-postgres/project-map.yaml
     - pilots/order-cancellation-postgres/durability-manifest.yaml
+    - pilots/order-cancellation-postgres/operational/manifest.yaml
+    - pilots/order-cancellation-postgres/operational/runbook.md
     - pilots/order-cancellation-postgres/evaluation/eval-case.yaml
 evidence:
   pilot: pilots/order-cancellation-postgres/README.md
@@ -82,6 +98,10 @@ evidence:
     - https://www.postgresql.org/support/versioning/
     - https://www.postgresql.org/docs/current/transaction-iso.html
     - https://www.postgresql.org/docs/current/explicit-locking.html
+    - https://www.postgresql.org/docs/current/server-shutdown.html
+    - https://www.postgresql.org/docs/current/app-pgdump.html
+    - https://www.postgresql.org/docs/current/app-pgrestore.html
+    - https://www.postgresql.org/docs/current/continuous-archiving.html
     - https://node-postgres.com/features/transactions
     - https://node-postgres.com/features/pooling
   confidence: medium

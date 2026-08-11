@@ -8,9 +8,11 @@
   },
   "scripts": {
     "migrate": "node src/migrate.ts",
+    "rollback": "node src/rollback.ts",
     "seed": "node src/seed.ts",
     "start": "node src/server.ts",
     "worker": "node src/worker-main.ts",
+    "ops": "node src/ops-main.ts",
     "typecheck": "tsc6 --noEmit",
     "test": "node --test --test-concurrency=1 test/*.test.ts",
     "check": "npm run typecheck && npm test"

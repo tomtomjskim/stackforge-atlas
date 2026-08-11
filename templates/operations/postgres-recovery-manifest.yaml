@@ -1,0 +1,64 @@
+version: 1
+status: draft
+data_store_profile: ../../packs/data-stores/postgresql/profile.yaml
+runner: run-recovery-drill.sh
+report_validator: ../../scripts/validate_operational_report.py
+runbook: runbook.md
+alerts: alerts.yaml
+crash_recovery:
+  shutdown_signal: SIGQUIT
+  persistent_volume: Describe the persistent data directory or managed storage identity.
+  expected_semantics: Describe how crash recovery is detected and which committed markers are compared.
+  observed_rto_threshold_ms: 60000
+migration:
+  baseline: migrations/001_baseline.sql
+  forward: migrations/002_change.sql
+  rollback: migrations/002_change.down.sql
+  runner: app/src/migrate.ts#migrate
+  rollback_runner: app/src/rollback.ts#rollbackMigration
+  rollback_boundary: State when down migration is safe and when roll-forward repair is mandatory.
+logical_backup:
+  format: custom
+  command: pg_dump --format=custom --no-owner --no-privileges
+  restore_command: pg_restore --no-owner --no-privileges --exit-on-error
+  independent_restore_volume: true
+  observed_rto_threshold_ms: 120000
+reconciliation:
+  table: reconciliation_cases
+  service: app/src/reconciliation.ts#ReconciliationService
+  operator_command: app/src/ops-main.ts#resolve-reconciliation
+  unknown_outcome_policy: Keep business state protected until an authoritative external status is recorded.
+observability:
+  health_view: operational_recovery_health
+  alert_catalog: alerts.yaml
+  required_signals:
+    - pending operations
+    - ready outbox events
+    - expired worker leases
+    - open reconciliation cases
+    - oldest pending age
+scenarios:
+  - id: immediate-shutdown-restart
+    expectation: Describe the committed-state comparison across immediate restart.
+    evidence: run-recovery-drill.sh#SIGQUIT
+  - id: retained-data-forward-migration
+    expectation: Describe retained data verified during forward migration.
+    evidence: run-recovery-drill.sh#forward migration
+  - id: guarded-migration-rollback
+    expectation: Describe the safe rollback boundary and guard.
+    evidence: migrations/002_change.down.sql#rollback guard
+  - id: logical-backup-independent-restore
+    expectation: Describe independent restore and comparison evidence.
+    evidence: run-recovery-drill.sh#pg_restore
+  - id: reconciliation-resolution
+    expectation: Describe operator resolution of an unknown external outcome.
+    evidence: app/test/operational.test.ts#reconciliation
+limitations:
+  - State the storage, topology, or failure modes not exercised.
+  - State whether WAL archiving and PITR are configured.
+  - State that observed timings are evidence rather than production SLOs.
+  - State external provider and operator-interface limitations.
+sources:
+  - https://www.postgresql.org/docs/current/server-shutdown.html
+  - https://www.postgresql.org/docs/current/app-pgdump.html
+  - https://www.postgresql.org/docs/current/app-pgrestore.html
