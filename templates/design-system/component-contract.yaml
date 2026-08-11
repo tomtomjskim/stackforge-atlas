@@ -1,0 +1,69 @@
+id: operation-result
+name: Operation result
+status: proposed
+version: 1
+purpose: Present the durable outcome of an accepted synchronous or asynchronous operation.
+avoid_when:
+  - Feedback is transient and losing it cannot change user action or trust
+
+anatomy:
+  - id: status-icon
+    required: true
+  - id: heading
+    required: true
+  - id: message
+    required: true
+  - id: reference
+    required: false
+  - id: actions
+    required: false
+
+variants:
+  - pending
+  - completed
+  - failed
+
+states:
+  default: Render the selected semantic variant.
+  updating: Preserve the current result while indicating a bounded refresh.
+  error: Keep the durable reference and expose a safe retry or support path.
+
+interaction:
+  keyboard:
+    - Actions follow DOM order and use native interactive elements
+  focus:
+    - Focus the heading when the result replaces a submitted form
+  async:
+    - Pending status may refresh without replacing the durable operation identity
+
+content:
+  heading_max_characters: 80
+  message_max_characters: 240
+  reference_label_required: true
+  localization_notes:
+    - Do not construct sentences by concatenating fragments
+
+accessibility:
+  semantics: Region with a programmatic heading; use status announcements only for changes
+  color_independence: Variant meaning requires text and icon, not color alone
+  motion: No essential information depends on animation
+
+responsive:
+  narrow: Stack actions below content without changing reading order
+  wide: Keep actions adjacent when space permits
+
+tokens:
+  - color.status.pending.background
+  - color.status.pending.foreground
+  - color.status.danger.background
+  - color.status.danger.foreground
+
+verification:
+  - interaction
+  - accessibility
+  - visual-states
+  - localization
+
+owners:
+  design: unassigned
+  engineering: unassigned

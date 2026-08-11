@@ -1,0 +1,85 @@
+id: ORDER-CANCEL
+name: Customer order cancellation
+status: ready
+risk: high
+
+problem:
+  actor: Customer who owns a paid order
+  context: The order has not entered shipment processing
+  pain: The customer cannot safely request cancellation or understand delayed provider processing
+  outcome: Eligible orders can be cancelled once, with clear pending, conflict, failure, and completion feedback
+
+scope:
+  goals:
+    - Allow the owner to request cancellation for an eligible paid order
+    - Prevent duplicate provider cancellation effects
+    - Preserve a traceable receipt and final outcome
+  non_goals:
+    - Return or exchange after shipment
+    - Administrative forced cancellation
+    - Payment-provider replacement
+
+actors:
+  - id: customer
+    permissions:
+      - order.cancel.own
+
+invariants:
+  - Only the owning customer can request self-service cancellation
+  - A shipped order cannot enter self-service cancellation
+  - A provider cancellation effect is applied at most once per order payment
+  - Local state and provider state are reconcilable after timeout or partial failure
+
+journeys:
+  - id: customer-cancel-order
+    entry: Customer opens an owned paid order that has not entered shipment
+    success: Cancellation is completed or a durable pending receipt is visible
+    alternate_outcomes:
+      - Order is no longer eligible
+      - Actor is forbidden
+      - Authoritative validation rejects the reason
+      - Provider result is delayed or requires reconciliation
+
+surfaces:
+  - id: order-cancellation
+    contract: screen-contract.yaml
+
+interfaces:
+  - id: get-order-cancellation-context
+    type: openapi
+    contract: openapi.yaml
+    operation_id: getOrderCancellationContext
+  - id: request-order-cancellation
+    type: openapi
+    contract: openapi.yaml
+    operation_id: requestOrderCancellation
+  - id: get-order-cancellation
+    type: openapi
+    contract: openapi.yaml
+    operation_id: getOrderCancellation
+
+risks:
+  - id: RISK-DUPLICATE
+    category: financial-integrity
+    statement: Concurrent or repeated requests could trigger duplicate provider cancellation calls
+    mitigation: Require an idempotency key, protect the state transition, and persist provider request identity
+  - id: RISK-DIVERGENCE
+    category: integration
+    statement: A timeout could leave local and provider cancellation states inconsistent
+    mitigation: Return a pending receipt and reconcile using a durable operation record
+
+gates:
+  required:
+    - contract-validation
+    - authorization-negative-tests
+    - concurrency-and-idempotency
+    - provider-timeout-integration
+    - accessibility
+    - critical-e2e
+    - adversarial-review
+
+owners:
+  product: commerce-product
+  design: commerce-experience
+  engineering: order-platform
+  operations: commerce-operations

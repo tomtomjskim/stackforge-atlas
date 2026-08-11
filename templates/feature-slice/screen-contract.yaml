@@ -1,0 +1,127 @@
+id: feature-screen
+version: 1
+name: Feature screen
+route: /features/{featureId}
+purpose: Let the actor review the current state and perform the primary feature action.
+
+actors:
+  - id: primary-user
+    permissions:
+      - permission.name
+
+entry_points:
+  - source: parent-detail
+    condition: Actor can view the target object
+
+layout:
+  regions:
+    - id: summary
+      priority: primary
+      purpose: Show identity and current status
+    - id: action-form
+      priority: primary
+      purpose: Collect the minimum information required for the action
+    - id: feedback
+      priority: secondary
+      purpose: Present validation, pending, success, and recovery information
+
+data_dependencies:
+  - id: feature-surface
+    operation_id: getFeatureSurface
+    consumers:
+      - summary
+      - action-form
+    required_for:
+      - ready
+    refresh:
+      strategy: on-demand
+      triggers:
+        - entry
+        - stale
+        - conflict
+  - id: feature-operation-status
+    operation_id: getFeatureOperation
+    consumers:
+      - feedback
+    required_for:
+      - pending
+      - success
+      - terminal_error
+    refresh:
+      strategy: poll
+      activation: performFeatureOperation:PENDING
+      stop_when:
+        - COMPLETED
+        - FAILED
+
+fields:
+  - id: reason-code
+    type: select
+    required: true
+    validation_owner: backend
+    data_source: getFeatureSurface
+
+actions:
+  - id: submit-feature
+    intent: Perform the feature operation
+    kind: primary
+    operation_id: performFeatureOperation
+    permission: permission.name
+    destructive: false
+    idempotency_required: true
+
+states:
+  initial:
+    behavior: Reserve stable layout and start the primary query.
+  loading:
+    behavior: Show structural placeholders and keep navigation available.
+  ready:
+    behavior: Show current data and enable actions allowed by capability rules.
+  empty:
+    behavior: Explain the valid absence and provide the next useful action.
+  partial:
+    behavior: Render safe available data and identify the unavailable section.
+  stale:
+    behavior: Identify outdated data and require refresh before destructive work.
+  validation_error:
+    behavior: Preserve input, identify fields, and focus the error summary.
+  system_error:
+    behavior: Preserve safe input and provide bounded retry or support guidance.
+  forbidden:
+    behavior: Explain that the action is unavailable without leaking protected facts.
+  conflict:
+    behavior: Explain that the object changed and offer a refresh path.
+  submitting:
+    behavior: Prevent duplicate submission while preserving cancellation when safe.
+  pending:
+    behavior: Show the durable operation reference and continue bounded status refresh.
+  terminal_error:
+    behavior: Show a stable failure outcome, safe reference, and supported recovery path.
+  success:
+    behavior: Confirm the changed state, move focus to confirmation, and expose the next action.
+
+responsive:
+  narrow:
+    behavior: Stack regions in reading order and keep the primary action adjacent to its context.
+  wide:
+    behavior: Keep summary visible while the actor completes the action.
+
+accessibility:
+  landmarks:
+    - main
+  initial_focus: page-heading
+  error_focus: validation-summary
+  announcements:
+    - operation-result
+  keyboard_notes:
+    - All actions use native controls and follow DOM reading order.
+
+telemetry:
+  outcome_events:
+    - feature_action_started
+    - feature_action_accepted
+    - feature_action_completed
+    - feature_action_failed
+  prohibited_data:
+    - free_text_sensitive_content
+    - authentication_tokens

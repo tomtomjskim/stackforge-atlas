@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stackforge-atlas.dev/schemas/review-finding.schema.json",
+  "title": "StackForge Atlas Review Finding",
+  "type": "object",
+  "required": ["id", "severity", "confidence", "category", "claim", "evidence", "impact", "reproduction", "recommendation", "disposition", "owner"],
+  "properties": {
+    "id": {"type": "string"},
+    "severity": {"enum": ["blocker", "major", "moderate", "minor"]},
+    "confidence": {"enum": ["high", "medium", "low"]},
+    "category": {"type": "string"},
+    "claim": {"type": "string", "minLength": 5},
+    "evidence": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "impact": {"type": "string", "minLength": 5},
+    "reproduction": {"type": "array", "items": {"type": "string"}},
+    "recommendation": {"type": "string", "minLength": 5},
+    "disposition": {"enum": ["open", "fixed", "accepted", "not-applicable", "deferred"]},
+    "owner": {"type": "string"}
+  }
+}

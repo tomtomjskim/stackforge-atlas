@@ -1,0 +1,324 @@
+openapi: 3.2.0
+info:
+  title: Order Cancellation API
+  version: 0.2.0
+  summary: Customer self-service cancellation read, command, and durable status contracts.
+servers:
+  - url: https://api.example.test
+paths:
+  /orders/{orderId}/cancellation-context:
+    get:
+      operationId: getOrderCancellationContext
+      summary: Return the owned order context, capability, reasons, and estimated financial effect.
+      security:
+        - customerSession: []
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Cancellation context required by the screen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancellationContext'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/SystemError'
+  /orders/{orderId}/cancellations:
+    post:
+      operationId: requestOrderCancellation
+      summary: Request cancellation of an eligible owned order.
+      security:
+        - customerSession: []
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 16
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancellationRequest'
+      responses:
+        '202':
+          description: Cancellation accepted; follow the durable resource until a terminal state is reached.
+          headers:
+            Location:
+              description: Relative or absolute URL of the cancellation resource.
+              schema:
+                type: string
+                format: uri-reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancellationReceipt'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/SystemError'
+  /order-cancellations/{cancellationId}:
+    get:
+      operationId: getOrderCancellation
+      summary: Return the durable state of an accepted customer cancellation.
+      security:
+        - customerSession: []
+      parameters:
+        - name: cancellationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Current cancellation state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancellationReceipt'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/SystemError'
+components:
+  securitySchemes:
+    customerSession:
+      type: http
+      scheme: bearer
+  parameters:
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    CancellationContext:
+      type: object
+      additionalProperties: false
+      required:
+        - orderId
+        - orderVersion
+        - paymentStatus
+        - shipmentStatus
+        - capability
+        - reasonOptions
+        - estimatedRefund
+      properties:
+        orderId:
+          type: string
+        orderVersion:
+          type: integer
+          minimum: 1
+        paymentStatus:
+          type: string
+          enum:
+            - PAID
+            - REFUND_PENDING
+            - REFUNDED
+        shipmentStatus:
+          type: string
+          enum:
+            - NOT_STARTED
+            - PROCESSING
+            - SHIPPED
+        capability:
+          $ref: '#/components/schemas/CancellationCapability'
+        reasonOptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/CancellationReasonOption'
+        estimatedRefund:
+          $ref: '#/components/schemas/Money'
+    CancellationCapability:
+      type: object
+      additionalProperties: false
+      required:
+        - allowed
+      properties:
+        allowed:
+          type: boolean
+        unavailableReasonCode:
+          type: string
+    CancellationReasonOption:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - label
+        - detailRequired
+      properties:
+        code:
+          type: string
+          enum:
+            - ORDERED_BY_MISTAKE
+            - DUPLICATE_ORDER
+            - DELIVERY_TOO_LATE
+            - OTHER
+        label:
+          type: string
+        detailRequired:
+          type: boolean
+    Money:
+      type: object
+      additionalProperties: false
+      required:
+        - currency
+        - amountMinor
+      properties:
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        amountMinor:
+          type: integer
+          minimum: 0
+    CancellationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - reasonCode
+        - expectedVersion
+      properties:
+        reasonCode:
+          type: string
+          enum:
+            - ORDERED_BY_MISTAKE
+            - DUPLICATE_ORDER
+            - DELIVERY_TOO_LATE
+            - OTHER
+        reasonDetail:
+          type: string
+          maxLength: 500
+        expectedVersion:
+          type: integer
+          minimum: 1
+    CancellationReceipt:
+      type: object
+      additionalProperties: false
+      required:
+        - cancellationId
+        - orderId
+        - status
+        - acceptedAt
+        - updatedAt
+        - traceId
+      properties:
+        cancellationId:
+          type: string
+        orderId:
+          type: string
+        status:
+          type: string
+          enum:
+            - PENDING
+            - COMPLETED
+            - FAILED
+        acceptedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        outcomeCode:
+          type: string
+        refund:
+          $ref: '#/components/schemas/Money'
+        traceId:
+          type: string
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+        - retryable
+        - traceId
+      properties:
+        code:
+          type: string
+          enum:
+            - AUTHENTICATION_REQUIRED
+            - VALIDATION_FAILED
+            - ORDER_NOT_CANCELLABLE
+            - ORDER_STATE_CONFLICT
+            - FORBIDDEN
+            - RESOURCE_NOT_FOUND
+            - CANCELLATION_UNAVAILABLE
+        message:
+          type: string
+        retryable:
+          type: boolean
+        traceId:
+          type: string
+        fieldErrors:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - field
+              - code
+            properties:
+              field:
+                type: string
+              code:
+                type: string
+              message:
+                type: string
+  responses:
+    AuthenticationRequired:
+      description: Customer authentication is missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationError:
+      description: Authoritative cancellation validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Actor is not allowed to access or cancel this order.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Requested order or cancellation is unavailable to the actor.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Order changed or is no longer eligible.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    SystemError:
+      description: Unexpected failure with a safe trace reference.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
