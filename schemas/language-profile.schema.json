@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stackforge-atlas.dev/schemas/language-profile.schema.json",
+  "title": "StackForge Atlas Language Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "version", "status", "review", "runtime", "language", "toolchain", "commands", "fit", "agent_guidance", "evidence"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "version": { "type": "integer", "minimum": 1 },
+    "status": { "enum": ["pilot", "recommended", "situational", "legacy-supported", "migration-only", "retired"] },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reviewed_at", "review_due", "owner"],
+      "properties": {
+        "reviewed_at": { "type": "string", "format": "date" },
+        "review_due": { "type": "string", "format": "date" },
+        "owner": { "type": "string" }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version_line", "support_status"],
+      "properties": {
+        "name": { "type": "string" },
+        "version_line": { "type": "string" },
+        "support_status": { "type": "string" }
+      }
+    },
+    "language": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version_line"],
+      "properties": {
+        "name": { "type": "string" },
+        "version_line": { "type": "string" }
+      }
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["package_manager", "type_checker", "test_runner"],
+      "properties": {
+        "package_manager": { "type": "string" },
+        "type_checker": { "type": "string" },
+        "test_runner": { "type": "string" }
+      }
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["install", "typecheck", "test", "verify"],
+      "properties": {
+        "install": { "type": "string" },
+        "typecheck": { "type": "string" },
+        "test": { "type": "string" },
+        "verify": { "type": "string" }
+      }
+    },
+    "fit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strong", "weak", "avoid_when"],
+      "properties": {
+        "strong": { "type": "array", "items": { "type": "string" } },
+        "weak": { "type": "array", "items": { "type": "string" } },
+        "avoid_when": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "agent_guidance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mandatory_checks", "common_failures", "context_files"],
+      "properties": {
+        "mandatory_checks": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "common_failures": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "context_files": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pilot", "sources", "confidence"],
+      "properties": {
+        "pilot": { "type": "string" },
+        "sources": { "type": "array", "minItems": 1, "items": { "type": "string", "format": "uri" } },
+        "confidence": { "enum": ["low", "medium", "high"] }
+      }
+    }
+  }
+}

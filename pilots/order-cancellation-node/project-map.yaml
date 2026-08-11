@@ -1,0 +1,119 @@
+version: 1
+project:
+  id: order-cancellation-node-pilot
+  name: Order cancellation Node.js pilot
+  status: pilot
+  risk: high
+  description: Runnable vertical slice proving that an Atlas screen contract, HTTP contract, domain invariant, UI state model, and automated evidence can remain traceable through implementation.
+
+stack:
+  runtimes:
+    - id: node
+      version: '24'
+      status: LTS pilot baseline
+  languages:
+    - id: typescript
+      version: '6.0'
+      status: transition release pilot baseline
+  frameworks:
+    - id: node-http
+      version: built-in
+      status: intentionally dependency-light adapter
+
+entrypoints:
+  http:
+    - app/src/server.ts
+    - app/src/http.ts
+  ui:
+    - app/public/index.html
+    - app/public/app.js
+    - app/public/styles.css
+  commands:
+    - cd pilots/order-cancellation-node/app && npm install --ignore-scripts --no-audit --no-fund
+    - cd pilots/order-cancellation-node/app && npm run check
+    - cd pilots/order-cancellation-node/app && npm start
+
+modules:
+  - id: product-interface
+    responsibility: Render the declared loading, permission, validation, pending, terminal, and completion states without reconstructing domain rules in the browser.
+    paths:
+      - app/public
+    depends_on:
+      - http-adapter
+  - id: http-adapter
+    responsibility: Authenticate the pilot actor, map the three OpenAPI operations, return stable errors, and emit safe structured request evidence.
+    paths:
+      - app/src/http.ts
+      - app/src/server.ts
+    depends_on:
+      - cancellation-application
+  - id: cancellation-application
+    responsibility: Validate commands, enforce idempotency and version checks, coordinate the provider gateway, and expose durable operation status.
+    paths:
+      - app/src/service.ts
+      - app/src/types.ts
+    depends_on:
+      - in-memory-store
+  - id: in-memory-store
+    responsibility: Demonstrate one atomic protected transition and durable operation semantics inside the process without claiming production persistence.
+    paths:
+      - app/src/store.ts
+    depends_on: []
+
+interfaces:
+  source_contract: ../../examples/order-cancellation/openapi.yaml
+  implementation_manifest: implementation-manifest.yaml
+  operations:
+    - getOrderCancellationContext
+    - requestOrderCancellation
+    - getOrderCancellation
+
+data:
+  stores:
+    - id: pilot-memory-store
+      type: in-memory
+      purpose: Deterministic test fixture for order state, idempotency records, and cancellation operation state
+  transaction_boundary: beginCancellation performs the eligibility check, idempotency decision, operation creation, payment-state transition, and order-version increment synchronously as one protected mutation.
+  durability: The process does not persist across restart; production adapters must replace this store with transactional storage and recovery or reconciliation evidence.
+
+security:
+  authentication: Bearer token value is treated as a local fixture actor identifier only.
+  authorization: Every order and cancellation lookup is scoped to the authenticated actor and returns a permission-safe unavailable response.
+  sensitive_data:
+    - cancellation free-text reason detail
+    - payment state and refund amount
+    - bearer credential
+  known_gaps:
+    - Fixture bearer authentication is not production authentication.
+    - No CSRF, session rotation, rate-limit, or abuse-control implementation is claimed.
+    - In-memory data provides no restart durability or tamper-resistant audit trail.
+
+operations:
+  health: GET /health returns process liveness only.
+  logging: One JSON http.request.completed event records traceId, method, logical route, status, and duration without request bodies or credentials.
+  shutdown: SIGINT and SIGTERM stop accepting connections and drain tracked provider tasks.
+  recovery: Same-key retries replay the accepted operation; the browser stores the operation Location locally and resumes polling after refresh; provider completion remains in process and restart recovery is explicitly unsupported.
+
+quality:
+  commands:
+    - npm run typecheck
+    - npm test
+    - npm run check
+  test_suites:
+    - app/test/service.test.ts
+    - app/test/http.test.ts
+  known_limitations:
+    - The native HTTP adapter is a portability baseline, not a framework recommendation.
+    - Browser interaction and accessibility are contract-reviewed but not yet exercised through a real browser automation tool.
+    - Browser refresh continuity is source-checked and relies on localStorage; cross-device continuation is not implemented.
+    - Persistence, database locking, migrations, and external payment reconciliation remain adapter work for the data-store pilot.
+    - Performance and load behavior have not been measured.
+
+maintenance:
+  owners:
+    - stackforge-atlas maintainers
+  change_rules:
+    - Change the source OpenAPI or screen contract before intentionally changing public behavior.
+    - Keep implementation-manifest operation coverage exact.
+    - Add a regression test before changing an invariant, error mapping, or retry rule.
+    - Do not promote pilot-only authentication or in-memory durability into a recommended stack profile.

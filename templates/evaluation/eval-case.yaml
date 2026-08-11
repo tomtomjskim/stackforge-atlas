@@ -1,0 +1,36 @@
+id: EVAL-CASE-001
+version: 1
+status: draft
+risk: medium
+
+fixture:
+  project_map: ../project-map.yaml
+  implementation_manifest: ../implementation-manifest.yaml
+  implementation_root: ../app
+  source_contract: ../../examples/feature/openapi.yaml
+
+task:
+  prompt: Implement or repair one bounded feature while preserving the declared product and interface contracts.
+  goals:
+    - Satisfy the explicit acceptance scenarios.
+  non_goals:
+    - Unrelated architecture replacement.
+
+acceptance:
+  commands:
+    - project verification command
+  scenarios:
+    - id: primary-scenario
+      expectation: Describe the observable result and the evidence that proves it.
+  forbidden_changes:
+    - Public interface changes outside the task scope.
+
+modes:
+  - model-only
+  - minimal-harness
+  - skill-loaded
+  - full-workflow
+
+evidence:
+  result: not-run
+  notes: Record result, human correction, scope drift, regressions, duration, and cost separately for each mode.

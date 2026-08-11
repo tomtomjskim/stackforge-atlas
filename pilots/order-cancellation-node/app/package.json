@@ -1,0 +1,19 @@
+{
+  "name": "@stackforge-atlas/order-cancellation-node-pilot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "start": "node src/server.ts",
+    "typecheck": "tsc6 --noEmit",
+    "test": "node --test test/*.test.ts",
+    "check": "npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "@types/node": "24.1.0",
+    "@typescript/typescript6": "6.0.2"
+  }
+}

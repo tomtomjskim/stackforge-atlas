@@ -1,7 +1,7 @@
 name: StackForge Atlas
 id: stackforge-atlas
-version: 0.1.0
-status: foundation
+version: 0.2.0
+status: cross-stack-pilot
 summary: Evidence-backed software engineering guidance and a lightweight agent harness for web applications.
 
 outcomes:
@@ -9,6 +9,7 @@ outcomes:
   - connect UI states to backend contracts and domain rules
   - apply risk-proportional verification and adversarial review
   - maintain source maps, decisions, and runbooks close to code
+  - compare stacks and harness modes without changing the product contract
 
 capabilities:
   product_interface:
@@ -20,15 +21,21 @@ capabilities:
     - UI-backend traceability
   engineering:
     - implementation planning
+    - project maps
+    - implementation manifests
     - verification evidence
     - adversarial review
     - maintenance knowledge
+  evaluation:
+    - reusable eval cases
+    - runnable cross-stack pilots
+    - contract-to-code drift checks
+    - harness-mode comparison protocol
   expansion:
     - language profiles
     - data-store profiles
     - infrastructure profiles
     - domain profiles
-    - evaluation suites
 
 standards_baseline:
   design_tokens: DTCG 2025.10
@@ -40,9 +47,16 @@ standards_baseline:
 entrypoints:
   introduction: README.md
   guide: docs/START-HERE.md
+  pilot_protocol: docs/CROSS-STACK-PILOTS.md
   agent_rules: AGENTS.md
   feature_template: templates/feature-slice/README.md
-  worked_example: examples/order-cancellation/README.md
+  project_map_template: templates/project-map/project-map.yaml
+  evaluation_template: templates/evaluation/eval-case.yaml
+  contract_example: examples/order-cancellation/README.md
+  runnable_pilot: pilots/order-cancellation-node/README.md
+  language_profile: packs/languages/typescript-node/README.md
 
 validation:
-  command: python scripts/validate_atlas.py
+  atlas_command: python scripts/validate_atlas.py
+  pilot_metadata_command: python scripts/validate_pilots.py
+  pilot_command: cd pilots/order-cancellation-node/app && npm run check

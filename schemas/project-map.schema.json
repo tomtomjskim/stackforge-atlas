@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stackforge-atlas.dev/schemas/project-map.schema.json",
+  "title": "StackForge Atlas Project Map",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "project",
+    "stack",
+    "entrypoints",
+    "modules",
+    "interfaces",
+    "data",
+    "security",
+    "operations",
+    "quality",
+    "maintenance"
+  ],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "status", "risk", "description"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "name": { "type": "string", "minLength": 2 },
+        "status": { "enum": ["pilot", "active", "maintenance", "retired"] },
+        "risk": { "enum": ["low", "medium", "high", "critical"] },
+        "description": { "type": "string", "minLength": 20 }
+      }
+    },
+    "stack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtimes", "languages", "frameworks"],
+      "properties": {
+        "runtimes": { "$ref": "#/$defs/stackItems" },
+        "languages": { "$ref": "#/$defs/stackItems" },
+        "frameworks": { "$ref": "#/$defs/stackItems" }
+      }
+    },
+    "entrypoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["http", "ui", "commands"],
+      "properties": {
+        "http": { "$ref": "#/$defs/nonEmptyStrings" },
+        "ui": { "$ref": "#/$defs/nonEmptyStrings" },
+        "commands": { "$ref": "#/$defs/nonEmptyStrings" }
+      }
+    },
+    "modules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "responsibility", "paths", "depends_on"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+          "responsibility": { "type": "string", "minLength": 10 },
+          "paths": { "$ref": "#/$defs/nonEmptyStrings" },
+          "depends_on": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "interfaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_contract", "implementation_manifest", "operations"],
+      "properties": {
+        "source_contract": { "type": "string", "minLength": 1 },
+        "implementation_manifest": { "type": "string", "minLength": 1 },
+        "operations": { "$ref": "#/$defs/nonEmptyStrings" }
+      }
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stores", "transaction_boundary", "durability"],
+      "properties": {
+        "stores": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "type", "purpose"],
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string" },
+              "purpose": { "type": "string" }
+            }
+          }
+        },
+        "transaction_boundary": { "type": "string", "minLength": 10 },
+        "durability": { "type": "string", "minLength": 10 }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authentication", "authorization", "sensitive_data", "known_gaps"],
+      "properties": {
+        "authentication": { "type": "string", "minLength": 5 },
+        "authorization": { "type": "string", "minLength": 5 },
+        "sensitive_data": { "type": "array", "items": { "type": "string" } },
+        "known_gaps": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "operations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["health", "logging", "shutdown", "recovery"],
+      "properties": {
+        "health": { "type": "string" },
+        "logging": { "type": "string" },
+        "shutdown": { "type": "string" },
+        "recovery": { "type": "string" }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commands", "test_suites", "known_limitations"],
+      "properties": {
+        "commands": { "$ref": "#/$defs/nonEmptyStrings" },
+        "test_suites": { "$ref": "#/$defs/nonEmptyStrings" },
+        "known_limitations": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "maintenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owners", "change_rules"],
+      "properties": {
+        "owners": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "change_rules": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+      }
+    }
+  },
+  "$defs": {
+    "nonEmptyStrings": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "stackItems": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "version", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "version": { "type": "string" },
+          "status": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -13,11 +13,11 @@
 <p align="center">
   <a href="./docs/START-HERE.md"><strong>Start here</strong></a>
   ·
-  <a href="./core/experience/product-interface-delivery.md">Delivery loop</a>
+  <a href="./pilots/order-cancellation-node/README.md">Runnable pilot</a>
   ·
   <a href="./templates/feature-slice/README.md">Feature slice kit</a>
   ·
-  <a href="./examples/order-cancellation/README.md">Worked example</a>
+  <a href="./examples/order-cancellation/README.md">Contract example</a>
 </p>
 
 ---
@@ -72,17 +72,13 @@ A feature is ready to build only when its meaningful states and interface bounda
   </tr>
 </table>
 
-## The first foundation
+## The first runnable proof
 
-The repository currently starts with the product-interface seam—the place where many generated applications become inconsistent:
+The initial contract foundation now has a working implementation checkpoint. The Node.js pilot carries one order-cancellation feature from screen states and an OpenAPI contract into a browser surface, protected domain transition, durable operation result, and executable tests.
 
-- a design-system model that connects tokens, components, patterns, and product surfaces;
-- wireframes treated as stateful screen contracts rather than static pictures;
-- backend interfaces derived from user intent and domain behavior rather than database tables;
-- a traceability matrix connecting visible UI behavior to API operations, rules, errors, and tests;
-- adversarial review and validation templates that force unhappy paths into the design before release.
+It is intentionally honest about its boundary: the pilot proves traceability and behavior inside a small process. It does not present fixture authentication or in-memory persistence as production architecture.
 
-The worked example follows an order-cancellation flow from user intent through screen states and an OpenAPI contract to verification evidence.
+Explore the [runnable pilot](./pilots/order-cancellation-node/README.md), review its [project map](./pilots/order-cancellation-node/project-map.yaml), or inspect the [evaluation case](./pilots/order-cancellation-node/evaluation/eval-case.yaml).
 
 ## Working principles
 
@@ -92,6 +88,6 @@ StackForge Atlas deliberately keeps the always-on agent rules small. Detailed gu
 
 ## Project status
 
-This repository is in its foundation stage. The current goal is to validate the model against real web-application tasks before expanding language, database, infrastructure, and domain packs.
+The repository is in its cross-stack pilot stage. The current work is to repeat the same product and interface contract across language, persistence, and maintenance contexts, then promote only failures that recur into shared rules.
 
-Begin with the [guided entry point](./docs/START-HERE.md), then copy the [feature slice kit](./templates/feature-slice/README.md) for a real task.
+Begin with the [guided entry point](./docs/START-HERE.md), run the [Node.js pilot](./pilots/order-cancellation-node/README.md), and read the [pilot protocol](./docs/CROSS-STACK-PILOTS.md) before adding another stack.
