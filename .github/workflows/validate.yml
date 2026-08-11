@@ -80,15 +80,11 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '24'
-      - name: Install pilot dependencies
-        run: npm install --ignore-scripts --no-audit --no-fund
+          cache: npm
+          cache-dependency-path: pilots/order-cancellation-postgres/app/package-lock.json
+      - name: Install locked pilot dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Apply migrations
         run: npm run migrate
       - name: Type-check and test PostgreSQL durability pilot
         run: npm run check
-      - name: Upload generated lockfile
-        uses: actions/upload-artifact@v4
-        with:
-          name: order-cancellation-postgres-lockfile
-          path: pilots/order-cancellation-postgres/app/package-lock.json
-          retention-days: 1
