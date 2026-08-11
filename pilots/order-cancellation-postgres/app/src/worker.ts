@@ -450,6 +450,12 @@ export class PostgresOutboxWorker {
       providerReference?: string;
     },
   ): Promise<void> {
+    const metadata = JSON.stringify({
+      cancellationId: input.cancellationId,
+      ...(input.providerReference
+        ? { providerReference: input.providerReference }
+        : {}),
+    });
     await client.query(
       `
         INSERT INTO audit_events(
@@ -474,12 +480,7 @@ export class PostgresOutboxWorker {
           $6,
           $7,
           $8,
-          jsonb_strip_nulls(
-            jsonb_build_object(
-              'cancellationId', $9,
-              'providerReference', $10::text
-            )
-          )
+          $9::jsonb
         )
         ON CONFLICT (event_id) DO NOTHING
       `,
@@ -492,8 +493,7 @@ export class PostgresOutboxWorker {
         input.result,
         input.reasonCode,
         input.traceId,
-        input.cancellationId,
-        input.providerReference ?? null,
+        metadata,
       ],
     );
   }
