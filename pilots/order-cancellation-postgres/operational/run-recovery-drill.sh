@@ -162,7 +162,6 @@ report={
    'observedPreBackupRowLoss':0},
  'reconciliation':{'caseId':int('$case_id'),'openCasesBefore':1,'openCasesAfter':0,'resolution':'COMPLETED'},
  'scopeLimitations':['CI timings are observations, not production SLOs','logical backup is verified; WAL archiving and PITR are not','single-node container restart is verified; replication and failover are not','provider status is simulated']}
-}
 Path("$report").write_text(json.dumps(report,indent=2)+'\n')
 PY
 python "$ROOT/scripts/validate_operational_report.py" "$report"
