@@ -27,6 +27,8 @@ jobs:
         run: |
           python scripts/validate_atlas.py
           python scripts/validate_pilots.py
+      - name: Reject known pilot metadata regressions
+        run: python scripts/test_validate_pilot_regressions.py
 
   node-pilot:
     runs-on: ubuntu-latest
