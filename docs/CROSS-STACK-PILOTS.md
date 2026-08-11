@@ -1,22 +1,24 @@
 # Cross-stack Pilots
 
-Cross-stack pilots test whether Atlas contracts survive implementation in different languages and operational shapes. They are not syntax translations and they do not rank languages by popularity.
+Cross-stack pilots test whether Atlas contracts survive implementation in different languages, data stores, and operational shapes. They are not syntax translations and they do not rank technologies by popularity.
 
 ## Pilot protocol
 
 Each pilot must provide:
 
 1. a shared product, screen, and interface contract;
-2. a runnable implementation;
+2. a runnable implementation or adapter;
 3. a project map describing boundaries and limitations;
 4. an implementation manifest mapping operations to handlers and evidence;
 5. an evaluation case with stable acceptance scenarios;
 6. stack-native type, test, and verification commands;
 7. an adversarial statement of what the pilot does not prove.
 
+A persistence pilot also provides a durability manifest covering migrations, transaction boundaries, outbox delivery, recovery, audit behavior, and explicit limitations.
+
 ## Comparison rule
 
-The same scenario should be compared across stacks without forcing identical internal architecture.
+The same scenario should be compared without forcing identical internal architecture.
 
 ```text
 Keep constant
@@ -30,7 +32,9 @@ Keep constant
 Allow to vary
 - framework
 - module organization
-- transaction adapter
+- transaction and locking strategy
+- data-store constraints
+- worker claim strategy
 - test tools
 - runtime lifecycle
 - deployment packaging
@@ -43,17 +47,21 @@ Allow to vary
 | Contract | Structured artifacts agree and references resolve. |
 | Runnable | The implementation starts and exposes the declared boundary. |
 | Verified | Automated tests exercise domain and interface behavior. |
-| Operational | Persistence, recovery, observability, deployment, and rollback are exercised. |
+| Durable | Accepted state and unfinished work survive application-instance replacement. |
+| Operational | Database restart, backup/restore, deployment, observability, and rollback are exercised. |
 | Comparative | Repeated runs across harness modes or stacks produce measured results. |
 
-A pilot must not claim a higher level because a lower-level validator passed.
+A pilot must not claim a higher level because a lower-level validator passed. Durable does not imply Operational, and transactional outbox does not imply exactly-once external delivery.
 
-## First sequence
+## Current sequence
 
-1. TypeScript / Node.js greenfield runnable pilot
-2. Python port of the same contract
-3. PHP port with explicit legacy and modern runtime variants
-4. Relational persistence adapters for PostgreSQL and MySQL
-5. Existing-codebase maintenance task using the same evaluation case
+1. TypeScript / Node.js greenfield runnable pilot — completed
+2. PostgreSQL transaction and durability pilot — completed at the Durable subset
+3. PostgreSQL server restart, backup/restore, and migration drill
+4. MySQL pilot preserving outcomes with engine-native implementation
+5. Python port of the shared contract
+6. PHP modern and legacy runtime variants
+7. Existing-codebase maintenance task using the same evaluation case
+8. Controlled harness-mode comparisons
 
-Rules should be promoted into `core/` only after a failure repeats across more than one stack or project shape.
+Rules should be promoted into `core/` only after a failure repeats across more than one stack, data store, or project shape.

@@ -1,0 +1,62 @@
+version: 1
+data_store_profile: ../../packs/data-stores/postgresql/profile.yaml
+migration:
+  up: migrations/001_order_cancellation.sql
+  down: migrations/001_order_cancellation.down.sql
+  runner: app/src/migrate.ts#migrate
+  version: 001_order_cancellation.sql
+transaction:
+  isolation: read-committed
+  entrypoint: app/src/service.ts#requestCancellation
+  protected_resources:
+    - actor-scoped idempotency key advisory lock
+    - orders row FOR UPDATE
+    - partial unique effective cancellation per order
+    - unique customer idempotency key
+  atomic_writes:
+    - order_cancellations
+    - orders
+    - outbox_events
+    - audit_events
+outbox:
+  table: outbox_events
+  worker: app/src/worker.ts#runOnce
+  claim_strategy: for-update-skip-locked
+  lease_seconds: 30
+  delivery_semantics: at-least-once with provider idempotency and unknown-outcome quarantine
+  provider_identity: provider_cancellation_effects.cancellation_id
+audit:
+  table: audit_events
+  append_only: true
+  enforcement: database trigger rejects UPDATE and DELETE
+recovery:
+  scenarios:
+    - id: application-instance-restart-before-dispatch
+      expectation: A committed pending cancellation and outbox event remain queryable after the original pool closes and a new worker instance completes them.
+      evidence: app/test/database.test.ts#accepted operation survives application instance restart and completes from persisted outbox
+    - id: abandoned-worker-lease
+      expectation: An expired claim can be reclaimed without creating a second provider-effect row.
+      evidence: app/test/database.test.ts#expired worker lease recovers after provider effect without duplicating the effect row
+    - id: concurrent-workers
+      expectation: SKIP LOCKED prevents one available event from being processed concurrently by two workers.
+      evidence: app/test/database.test.ts#two workers use skip locked so one event is not processed concurrently
+    - id: atomic-command
+      expectation: Acceptance persists the operation, order state, outbox work, and audit evidence together.
+      evidence: app/test/database.test.ts#accepted command atomically persists order transition, outbox, and audit evidence
+    - id: atomic-rollback
+      expectation: A failure while inserting outbox work rolls back the cancellation, order transition, outbox, and audit writes.
+      evidence: app/test/database.test.ts#transaction rollback leaves no accepted state when outbox insertion fails
+    - id: explicit-provider-failure
+      expectation: A provider-declared terminal rejection preserves the failed operation and releases the order for a new versioned attempt.
+      evidence: app/test/retry.test.ts#terminal provider failure releases the order for a new versioned attempt
+    - id: unknown-provider-outcome
+      expectation: Exhausted transport retries keep the operation pending, quarantine the outbox row, and create reconciliation audit evidence instead of declaring failure.
+      evidence: app/test/retry.test.ts#retry exhaustion keeps the operation pending for reconciliation instead of declaring failure
+    - id: audit-immutability
+      expectation: Application credentials cannot update or delete audit rows.
+      evidence: app/test/database.test.ts#audit events reject update and delete mutations
+limitations:
+  - PostgreSQL server restart, crash recovery, backup restore, PITR, replication, and failover are not exercised.
+  - The simulated provider shares the pilot database and does not prove a real provider's idempotency contract.
+  - Lease timing and lock contention are verified functionally, not under load.
+  - Reconciliation-required work is quarantined but no operator resolution or provider-status lookup workflow is implemented.

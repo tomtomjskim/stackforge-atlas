@@ -1,0 +1,87 @@
+id: postgresql
+version: 1
+status: pilot
+review:
+  reviewed_at: '2026-08-11'
+  review_due: '2027-02-11'
+  owner: stackforge-atlas maintainers
+engine:
+  name: PostgreSQL
+  version_line: '18'
+  tested_minor: '18.4'
+  support_status: supported
+deployment:
+  pilot_image: postgres:18.4
+  production_default: null
+capabilities:
+  transactions:
+    default_isolation: read-committed
+    tested_patterns:
+      - row-level order lock with SELECT FOR UPDATE
+      - actor-scoped transaction advisory lock for idempotency serialization
+      - atomic order, operation, outbox, and audit writes
+  concurrency:
+    tested_patterns:
+      - unique constraints and a partial unique index as final invariant protection
+      - FOR UPDATE SKIP LOCKED for outbox claims
+      - reclaimable worker lease
+  integration:
+    tested_patterns:
+      - transactional outbox
+      - at-least-once delivery with provider idempotency
+  audit:
+    tested_patterns:
+      - append-only audit table enforced by trigger
+  recovery:
+    tested_patterns:
+      - application pool replacement
+      - abandoned worker lease recovery
+      - explicit terminal failure followed by a new versioned attempt
+      - unknown external outcome quarantined for reconciliation
+    not_tested:
+      - PostgreSQL server restart
+      - point-in-time recovery
+      - backup restore
+      - replication and failover
+fit:
+  strong:
+    - Transactional web systems where relational invariants and concurrent state transitions matter
+    - Durable job and outbox workflows that benefit from one operational data store at moderate scale
+    - Systems requiring constraints, explicit locks, rich SQL, and mature recovery tooling
+  weak:
+    - Workloads whose primary access pattern is an unbounded high-volume event stream
+    - Teams without ownership for migrations, backups, vacuum, connection limits, and minor upgrades
+  avoid_when:
+    - The application cannot tolerate operating a stateful relational system or managed equivalent
+    - The data model and consistency requirement are not understood and PostgreSQL is being selected only by popularity
+agent_guidance:
+  mandatory_checks:
+    - Use one checked-out client for every transaction and always release it.
+    - Keep external provider calls outside the acceptance transaction.
+    - Back application checks with constraints or unique indexes where practical.
+    - Define lock order, timeout, retry, and deadlock behavior for concurrent writes.
+    - Treat worker delivery as at-least-once unless a stronger guarantee is proven end to end.
+    - Distinguish explicit provider rejection from unknown transport outcome; quarantine and reconcile the latter.
+    - Exercise migration, rollback, restart, backup, and restore separately before claiming operational readiness.
+  common_failures:
+    - Using pool-level queries inside a multi-statement transaction
+    - Checking state and updating it without a lock, conditional update, or serializable retry policy
+    - Holding row locks while calling an external API
+    - Using SKIP LOCKED without a lease or abandoned-work recovery
+    - Assuming an outbox makes the external side effect exactly once
+    - Declaring a terminal failure after timeout retries without checking or reconciling provider state
+    - Adding indexes without a concrete query and write-cost analysis
+    - Treating JSONB payloads as a substitute for relational constraints
+  context_files:
+    - pilots/order-cancellation-postgres/project-map.yaml
+    - pilots/order-cancellation-postgres/durability-manifest.yaml
+    - pilots/order-cancellation-postgres/evaluation/eval-case.yaml
+evidence:
+  pilot: pilots/order-cancellation-postgres/README.md
+  sources:
+    - https://www.postgresql.org/support/versioning/
+    - https://www.postgresql.org/docs/current/transaction-iso.html
+    - https://www.postgresql.org/docs/current/explicit-locking.html
+    - https://node-postgres.com/features/transactions
+    - https://node-postgres.com/features/pooling
+  confidence: medium

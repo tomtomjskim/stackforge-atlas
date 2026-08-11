@@ -1,0 +1,40 @@
+id: data-store-id
+version: 1
+status: pilot
+review:
+  reviewed_at: '2000-01-01'
+  review_due: '2000-01-01'
+  owner: unassigned
+engine:
+  name: Data store name
+  version_line: Version line
+  tested_minor: Exact tested version
+  support_status: supported
+deployment:
+  pilot_image: null
+  production_default: null
+capabilities:
+  transactions:
+    default_isolation: unknown
+    tested_patterns: []
+  concurrency:
+    tested_patterns: []
+  integration:
+    tested_patterns: []
+  audit:
+    tested_patterns: []
+  recovery:
+    tested_patterns: []
+    not_tested: []
+fit:
+  strong: []
+  weak: []
+  avoid_when: []
+agent_guidance:
+  mandatory_checks: []
+  common_failures: []
+  context_files: []
+evidence:
+  pilot: path/to/pilot/README.md
+  sources: []
+  confidence: low

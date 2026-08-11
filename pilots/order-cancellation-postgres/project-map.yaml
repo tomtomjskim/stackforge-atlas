@@ -1,0 +1,146 @@
+version: 1
+project:
+  id: order-cancellation-postgres-pilot
+  name: Order cancellation PostgreSQL durability pilot
+  status: pilot
+  risk: high
+  description: Runnable persistence pilot proving transaction, rollback, idempotency, outbox delivery, worker lease recovery, unknown-outcome quarantine, append-only audit evidence, and application-instance restart continuity for the shared order-cancellation contract.
+
+stack:
+  runtimes:
+    - id: node
+      version: '24'
+      status: Active LTS pilot runtime
+    - id: postgresql
+      version: '18.4'
+      status: Current supported database baseline
+  languages:
+    - id: typescript
+      version: '6.0'
+      status: Strict application and test code
+    - id: sql
+      version: postgresql-18
+      status: Explicit schema, transaction, locking, and worker queries
+  frameworks:
+    - id: node-http
+      version: built-in
+      status: Shared HTTP portability adapter
+    - id: node-postgres
+      version: '8.16.3'
+      status: Low-level PostgreSQL driver
+
+entrypoints:
+  http:
+    - app/src/server.ts
+    - app/src/http.ts
+  ui:
+    - ../order-cancellation-node/app/public/index.html
+    - ../order-cancellation-node/app/public/app.js
+    - ../order-cancellation-node/app/public/styles.css
+  commands:
+    - cd pilots/order-cancellation-postgres/app && npm ci --ignore-scripts --no-audit --no-fund
+    - cd pilots/order-cancellation-postgres/app && npm run migrate
+    - cd pilots/order-cancellation-postgres/app && npm run seed
+    - cd pilots/order-cancellation-postgres/app && npm run check
+    - cd pilots/order-cancellation-postgres && docker compose up
+
+modules:
+  - id: shared-product-interface
+    responsibility: Reuse the previously verified browser surface so this pilot changes persistence and recovery semantics without introducing a second UI implementation.
+    paths:
+      - ../order-cancellation-node/app/public
+    depends_on:
+      - postgres-http-adapter
+  - id: postgres-http-adapter
+    responsibility: Expose the three shared OpenAPI operations, database readiness, stable errors, and safe structured request evidence.
+    paths:
+      - app/src/http.ts
+      - app/src/server.ts
+    depends_on:
+      - cancellation-application
+  - id: cancellation-application
+    responsibility: Validate commands and atomically protect ownership, version, eligibility, idempotency, order transition, outbox creation, and audit evidence.
+    paths:
+      - app/src/service.ts
+      - app/src/types.ts
+    depends_on:
+      - postgres-database
+  - id: outbox-worker
+    responsibility: Claim available work with a bounded lease, call an idempotent provider adapter, finalize durable state, and recover abandoned claims.
+    paths:
+      - app/src/worker.ts
+      - app/src/worker-main.ts
+    depends_on:
+      - postgres-database
+  - id: postgres-database
+    responsibility: Provide schema migrations, row locks, uniqueness constraints, persisted operations, append-only audit records, and idempotent provider-effect evidence.
+    paths:
+      - migrations
+      - app/src/db.ts
+      - app/src/migrate.ts
+      - app/src/seed.ts
+    depends_on: []
+
+interfaces:
+  source_contract: ../../examples/order-cancellation/openapi.yaml
+  implementation_manifest: implementation-manifest.yaml
+  operations:
+    - getOrderCancellationContext
+    - requestOrderCancellation
+    - getOrderCancellation
+
+data:
+  stores:
+    - id: postgres-primary
+      type: PostgreSQL 18.4
+      purpose: Orders, cancellation operations, idempotency identity, outbox work, provider-effect evidence, and append-only audit events
+  transaction_boundary: requestCancellation uses one Read Committed transaction, an idempotency advisory lock, a row-level order lock, unique constraints, and atomic writes to the order, cancellation, outbox, and audit tables.
+  durability: Accepted operations and undispatched outbox events survive application pool replacement; expired worker leases can be reclaimed, and repeated provider delivery converges through a unique provider-effect identity.
+
+security:
+  authentication: Bearer values remain fixture actor identifiers and are not presented as production identity.
+  authorization: Order and cancellation reads are actor-scoped; protected writes lock the owned order and return permission-safe not-found responses.
+  sensitive_data:
+    - cancellation free-text reason detail
+    - payment and refund amount
+    - bearer credential
+    - database connection credential
+  known_gaps:
+    - The pilot does not implement production authentication, session security, row-level security, or secret rotation.
+    - The provider effect is simulated in PostgreSQL rather than exercised against a real external payment service.
+    - Audit append-only enforcement is database-local and not a tamper-evident external archive.
+
+operations:
+  health: GET /health checks process availability and executes SELECT 1 against PostgreSQL.
+  logging: HTTP completion and worker result logs are structured and omit request bodies, bearer values, and free-text reasons.
+  shutdown: The HTTP process stops accepting requests before closing its pool; the worker exits its claim loop before draining the pool.
+  recovery: Persisted pending operations are completed by a later worker instance; expired leases are reclaimed; repeated provider delivery converges through a durable cancellation identity; explicit provider rejection releases the order; and unknown outcomes remain pending in a quarantined reconciliation state.
+
+quality:
+  commands:
+    - npm run typecheck
+    - npm test
+    - npm run check
+    - python scripts/validate_atlas.py
+    - python scripts/validate_pilots.py
+  test_suites:
+    - app/test/database.test.ts
+    - app/test/http.test.ts
+    - app/test/retry.test.ts
+  known_limitations:
+    - Restart evidence replaces the application pool and service instance but does not reboot the PostgreSQL server.
+    - No point-in-time recovery, backup restore, failover, replication, or schema rollback drill is executed.
+    - The outbox provider simulation proves idempotent convergence, not exactly-once external delivery.
+    - Reconciliation-required work is quarantined and audited, but no operator resolution command or scheduled provider-status query is implemented yet.
+    - Performance, lock contention at scale, connection-pool sizing, and long-running worker behavior are not measured.
+    - The shared UI remains source and HTTP tested rather than browser-automated in this pilot.
+
+maintenance:
+  owners:
+    - stackforge-atlas maintainers
+  change_rules:
+    - Preserve the shared OpenAPI operation IDs and error semantics.
+    - Treat migrations as immutable after merge and add a new numbered migration for change.
+    - Keep request acceptance, outbox creation, and audit evidence in one transaction.
+    - Do not claim exactly-once delivery; require provider idempotency and reconciliation evidence.
+    - Add a regression test before changing locks, uniqueness constraints, lease rules, retry policy, or rollback behavior.

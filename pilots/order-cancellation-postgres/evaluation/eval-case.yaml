@@ -1,0 +1,78 @@
+id: ORDER-CANCEL-POSTGRES-001
+version: 1
+status: active
+risk: high
+
+fixture:
+  project_map: ../project-map.yaml
+  implementation_manifest: ../implementation-manifest.yaml
+  implementation_root: ../app
+  source_contract: ../../../examples/order-cancellation/openapi.yaml
+
+task:
+  prompt: Replace the in-memory order-cancellation state with PostgreSQL durability while preserving the shared screen and OpenAPI contracts. Acceptance, idempotency identity, order transition, outbox work, and audit evidence must commit atomically; workers must recover expired claims and repeated delivery without duplicating the provider effect.
+  goals:
+    - Preserve the three declared operation IDs and user-visible failure semantics.
+    - Serialize cancellation eligibility per order without globally serializing unrelated orders.
+    - Persist pending operations and outbox work across application-instance restart.
+    - Demonstrate at-least-once delivery with an idempotent provider identity.
+    - Distinguish explicit provider rejection from unknown transport outcome.
+    - Preserve unknown provider outcomes for reconciliation instead of declaring a false terminal failure.
+    - Preserve failed attempts while allowing a new versioned attempt after explicit terminal failure.
+    - Keep audit evidence append-only and queryable.
+    - Produce executable evidence for transaction, rollback, concurrency, lease recovery, and HTTP behavior.
+  non_goals:
+    - Real payment-provider integration.
+    - Production authentication or secret management.
+    - PostgreSQL failover, replication, backup restore, or performance benchmark.
+    - Claiming exactly-once delivery.
+
+acceptance:
+  commands:
+    - cd pilots/order-cancellation-postgres/app && npm ci --ignore-scripts --no-audit --no-fund
+    - cd pilots/order-cancellation-postgres/app && npm run migrate
+    - cd pilots/order-cancellation-postgres/app && npm run check
+    - python scripts/validate_atlas.py
+    - python scripts/validate_pilots.py
+    - python scripts/validate_durability_pilots.py
+  scenarios:
+    - id: atomic-command-outbox-audit
+      expectation: One transaction persists cancellation acceptance, order transition, outbox work, and audit evidence or leaves none of them.
+    - id: atomic-rollback-on-outbox-failure
+      expectation: A database failure during outbox insertion rolls back every earlier write in the acceptance transaction.
+    - id: same-key-replay
+      expectation: The same actor, order, payload, and idempotency key replay the original operation after a new transaction or application instance.
+    - id: same-key-payload-mismatch
+      expectation: Reusing an idempotency key with changed input produces a stable conflict.
+    - id: distinct-key-order-race
+      expectation: Concurrent distinct keys for one order produce one accepted operation and one conflict.
+    - id: restart-before-dispatch
+      expectation: Closing the accepting application pool does not lose the pending operation or outbox event; a new worker instance completes it.
+    - id: expired-lease-after-provider-effect
+      expectation: A worker crash after the provider effect but before local completion converges without a duplicate provider-effect row.
+    - id: explicit-terminal-provider-failure
+      expectation: A provider-declared rejection marks the operation failed and releases the order for a new versioned request.
+    - id: unknown-provider-outcome
+      expectation: Exhausted transport retries keep the operation pending, quarantine it for reconciliation, and block a second cancellation attempt.
+    - id: skip-locked-worker-claim
+      expectation: Two workers cannot process the same available outbox row concurrently.
+    - id: append-only-audit
+      expectation: UPDATE and DELETE against audit events fail.
+  forbidden_changes:
+    - Renaming or removing a shared OpenAPI operationId.
+    - Publishing an external event before the acceptance transaction commits.
+    - Holding a database transaction open across the provider call.
+    - Claiming exactly-once delivery.
+    - Marking an unknown external outcome as failed only because transport retries were exhausted.
+    - Logging bearer credentials or free-text cancellation detail.
+    - Using process memory as the authoritative idempotency or operation store.
+
+modes:
+  - model-only
+  - minimal-harness
+  - skill-loaded
+  - full-workflow
+
+evidence:
+  result: partial
+  notes: The full-workflow PostgreSQL implementation and automated durability tests exist. Controlled repeated harness-mode runs, real provider reconciliation, PostgreSQL server restart, and backup or failover exercises have not been completed.
