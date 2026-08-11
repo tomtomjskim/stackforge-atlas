@@ -1,0 +1,136 @@
+openapi: 3.2.0
+info:
+  title: Feature API
+  version: 0.1.0
+  summary: Contract supporting the feature screen.
+servers:
+  - url: https://api.example.test
+paths:
+  /features/{featureId}/actions:
+    post:
+      operationId: performFeatureOperation
+      summary: Perform the domain action for an eligible feature target.
+      parameters:
+        - name: featureId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 16
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeatureActionRequest'
+      responses:
+        '202':
+          description: Action accepted and processing state returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureActionReceipt'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/SystemError'
+components:
+  schemas:
+    FeatureActionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - reasonCode
+      properties:
+        reasonCode:
+          type: string
+          enum:
+            - USER_REQUEST
+            - DATA_CORRECTION
+        expectedVersion:
+          type: integer
+          minimum: 1
+    FeatureActionReceipt:
+      type: object
+      additionalProperties: false
+      required:
+        - operationId
+        - status
+        - traceId
+      properties:
+        operationId:
+          type: string
+        status:
+          type: string
+          enum:
+            - PENDING
+            - COMPLETED
+        traceId:
+          type: string
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+        - retryable
+        - traceId
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        retryable:
+          type: boolean
+        traceId:
+          type: string
+        fieldErrors:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - field
+              - code
+            properties:
+              field:
+                type: string
+              code:
+                type: string
+              message:
+                type: string
+  responses:
+    ValidationError:
+      description: Input failed authoritative validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Actor cannot perform the operation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Target state changed or is no longer eligible.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    SystemError:
+      description: Unexpected failure with a safe diagnostic reference.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

@@ -1,0 +1,161 @@
+openapi: 3.2.0
+info:
+  title: Order Cancellation API
+  version: 0.1.0
+  summary: Customer self-service order cancellation contract.
+servers:
+  - url: https://api.example.test
+paths:
+  /orders/{orderId}/cancellations:
+    post:
+      operationId: requestOrderCancellation
+      summary: Request cancellation of an eligible owned order.
+      security:
+        - customerSession: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 16
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancellationRequest'
+      responses:
+        '202':
+          description: Cancellation accepted; processing may be complete or pending reconciliation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancellationReceipt'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/SystemError'
+components:
+  securitySchemes:
+    customerSession:
+      type: http
+      scheme: bearer
+  schemas:
+    CancellationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - reasonCode
+        - expectedVersion
+      properties:
+        reasonCode:
+          type: string
+          enum:
+            - ORDERED_BY_MISTAKE
+            - DUPLICATE_ORDER
+            - DELIVERY_TOO_LATE
+            - OTHER
+        reasonDetail:
+          type: string
+          maxLength: 500
+        expectedVersion:
+          type: integer
+          minimum: 1
+    CancellationReceipt:
+      type: object
+      additionalProperties: false
+      required:
+        - cancellationId
+        - orderId
+        - status
+        - acceptedAt
+        - traceId
+      properties:
+        cancellationId:
+          type: string
+        orderId:
+          type: string
+        status:
+          type: string
+          enum:
+            - PENDING
+            - COMPLETED
+        acceptedAt:
+          type: string
+          format: date-time
+        traceId:
+          type: string
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+        - retryable
+        - traceId
+      properties:
+        code:
+          type: string
+          enum:
+            - VALIDATION_FAILED
+            - ORDER_NOT_CANCELLABLE
+            - ORDER_STATE_CONFLICT
+            - FORBIDDEN
+            - CANCELLATION_UNAVAILABLE
+        message:
+          type: string
+        retryable:
+          type: boolean
+        traceId:
+          type: string
+        fieldErrors:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - field
+              - code
+            properties:
+              field:
+                type: string
+              code:
+                type: string
+              message:
+                type: string
+  responses:
+    ValidationError:
+      description: Authoritative cancellation validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Actor is not allowed to cancel this order.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Order changed or is no longer eligible.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    SystemError:
+      description: Unexpected failure with a safe trace reference.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

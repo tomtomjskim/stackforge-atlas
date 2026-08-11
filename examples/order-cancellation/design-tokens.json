@@ -1,0 +1,46 @@
+{
+  "color": {
+    "$type": "color",
+    "status": {
+      "danger": {
+        "background": {
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [0.99, 0.94, 0.94],
+            "alpha": 1
+          }
+        },
+        "foreground": {
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [0.55, 0.08, 0.1],
+            "alpha": 1
+          }
+        }
+      },
+      "pending": {
+        "background": {
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [0.98, 0.96, 0.87],
+            "alpha": 1
+          }
+        },
+        "foreground": {
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [0.42, 0.31, 0.03],
+            "alpha": 1
+          }
+        }
+      }
+    }
+  },
+  "space": {
+    "$type": "dimension",
+    "flow": {
+      "related": {"$value": {"value": 8, "unit": "px"}},
+      "section": {"$value": {"value": 24, "unit": "px"}}
+    }
+  }
+}

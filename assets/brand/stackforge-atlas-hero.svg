@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="title desc">
+  <title id="title">StackForge Atlas</title>
+  <desc id="desc">A dark technical atlas graphic connecting intent, interface, evidence, and evolution.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#081022"/>
+      <stop offset="0.55" stop-color="#101a3b"/>
+      <stop offset="1" stop-color="#17143c"/>
+    </linearGradient>
+    <radialGradient id="glowA" cx="0.18" cy="0.25" r="0.55">
+      <stop offset="0" stop-color="#5f7cff" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#5f7cff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="0.86" cy="0.72" r="0.5">
+      <stop offset="0" stop-color="#b86cff" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#b86cff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7ba7ff"/>
+      <stop offset="1" stop-color="#c47cff"/>
+    </linearGradient>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#91a4dc" stroke-opacity="0.08" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1280" height="420" rx="28" fill="url(#bg)"/>
+  <rect width="1280" height="420" rx="28" fill="url(#glowA)"/>
+  <rect width="1280" height="420" rx="28" fill="url(#glowB)"/>
+  <rect x="1" y="1" width="1278" height="418" rx="27" fill="none" stroke="#c8d4ff" stroke-opacity="0.14"/>
+  <rect x="0" y="0" width="1280" height="420" rx="28" fill="url(#grid)"/>
+
+  <g opacity="0.84" stroke="url(#line)" stroke-width="2" fill="none">
+    <path d="M790 105 C865 56 942 55 1018 112 S1156 191 1202 144"/>
+    <path d="M766 294 C850 250 918 277 984 315 S1108 369 1190 323"/>
+    <path d="M890 119 C904 179 931 214 987 238 S1097 243 1156 205" stroke-opacity="0.58"/>
+    <path d="M822 306 C850 239 857 183 895 132" stroke-opacity="0.4"/>
+  </g>
+
+  <g filter="url(#softGlow)">
+    <circle cx="790" cy="105" r="7" fill="#7ba7ff"/>
+    <circle cx="895" cy="132" r="9" fill="#8d91ff"/>
+    <circle cx="1018" cy="112" r="7" fill="#a283ff"/>
+    <circle cx="1156" cy="205" r="9" fill="#c47cff"/>
+    <circle cx="984" cy="315" r="7" fill="#a283ff"/>
+    <circle cx="822" cy="306" r="9" fill="#7ba7ff"/>
+  </g>
+
+  <g font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#dbe4ff">
+    <text x="765" y="78" font-size="13" letter-spacing="2.6" opacity="0.72">INTENT</text>
+    <text x="871" y="110" font-size="13" letter-spacing="2.6" opacity="0.72">INTERFACE</text>
+    <text x="994" y="88" font-size="13" letter-spacing="2.6" opacity="0.72">EVIDENCE</text>
+    <text x="1114" y="181" font-size="13" letter-spacing="2.6" opacity="0.72">EVOLUTION</text>
+  </g>
+
+  <g transform="translate(74 70)">
+    <g transform="translate(0 1)">
+      <path d="M0 20 L30 3 L60 20 L60 55 L30 72 L0 55 Z" fill="none" stroke="#8fa9ff" stroke-width="3"/>
+      <path d="M14 28 L30 19 L46 28 L46 47 L30 56 L14 47 Z" fill="none" stroke="#c47cff" stroke-width="3"/>
+      <circle cx="30" cy="37" r="5" fill="#f0f4ff"/>
+    </g>
+    <text x="0" y="132" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="54" font-weight="720" letter-spacing="-1.8" fill="#f4f6ff">StackForge Atlas</text>
+    <text x="1" y="174" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500" fill="#b8c5ed">From product intent to maintainable software.</text>
+    <text x="1" y="222" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15" letter-spacing="1.1" fill="#91a4dc">DESIGN · CONTRACT · BUILD · VERIFY · EVOLVE</text>
+  </g>
+
+  <g transform="translate(76 338)" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <rect width="430" height="42" rx="21" fill="#ffffff" fill-opacity="0.07" stroke="#dce4ff" stroke-opacity="0.14"/>
+    <circle cx="23" cy="21" r="5" fill="#7ba7ff"/>
+    <text x="40" y="26" font-size="14" fill="#dbe4ff">Evidence-backed guidance for people and coding agents</text>
+  </g>
+</svg>

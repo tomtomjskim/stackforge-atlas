@@ -1,0 +1,69 @@
+id: operation-result
+name: Operation result
+status: proposed
+version: 1
+purpose: Present a durable operation outcome that remains understandable after delayed or partial processing.
+avoid_when:
+  - Feedback is transient and no durable operation identity exists
+
+anatomy:
+  - id: status-icon
+    required: true
+  - id: heading
+    required: true
+  - id: message
+    required: true
+  - id: reference
+    required: true
+  - id: actions
+    required: false
+
+variants:
+  - pending
+  - completed
+  - failed
+
+states:
+  default: Render the durable outcome and reference.
+  updating: Keep the current outcome visible while checking reconciliation status.
+  error: Preserve the reference and expose a support path without implying the operation was rejected.
+
+interaction:
+  keyboard:
+    - Any actions are native links or buttons in DOM order
+  focus:
+    - Focus the result heading after the cancellation form is accepted
+  async:
+    - Status refresh never creates a second operation identity
+
+content:
+  heading_max_characters: 80
+  message_max_characters: 240
+  reference_label_required: true
+  localization_notes:
+    - Keep provider terminology out of customer-facing copy
+
+accessibility:
+  semantics: Labelled region; pending-to-completed change is announced politely
+  color_independence: Every variant includes text and an icon in addition to color
+  motion: Status change does not require animation
+
+responsive:
+  narrow: Stack actions below the message and keep the reference copyable
+  wide: Place the primary next action beside the result when it remains in reading order
+
+tokens:
+  - color.status.pending.background
+  - color.status.pending.foreground
+  - color.status.danger.background
+  - color.status.danger.foreground
+
+verification:
+  - interaction
+  - accessibility
+  - visual-states
+  - localization
+
+owners:
+  design: commerce-experience
+  engineering: design-system

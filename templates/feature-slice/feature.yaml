@@ -1,0 +1,60 @@
+id: FEATURE-ID
+name: Feature name
+status: draft
+risk: medium
+
+problem:
+  actor: Primary actor
+  context: Situation in which the problem occurs
+  pain: Observable problem, not a proposed solution
+  outcome: Measurable or testable result
+
+scope:
+  goals:
+    - Goal that must be achieved
+  non_goals:
+    - Adjacent work explicitly excluded
+
+actors:
+  - id: primary-user
+    permissions:
+      - permission.name
+
+invariants:
+  - Domain truth that must remain valid
+
+journeys:
+  - id: main-flow
+    entry: Entry condition
+    success: Terminal successful outcome
+    alternate_outcomes:
+      - Recoverable or denied outcome
+
+surfaces:
+  - id: feature-screen
+    contract: screen-contract.yaml
+
+interfaces:
+  - id: feature-operation
+    type: openapi
+    contract: openapi.yaml
+    operation_id: performFeatureOperation
+
+risks:
+  - id: RISK-001
+    category: integrity
+    statement: Concrete failure mode
+    mitigation: Design and verification response
+
+gates:
+  required:
+    - contract-validation
+    - accessibility
+    - integration
+    - adversarial-review
+
+owners:
+  product: unassigned
+  design: unassigned
+  engineering: unassigned
+  operations: unassigned

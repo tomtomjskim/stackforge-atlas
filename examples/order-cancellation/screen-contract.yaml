@@ -1,0 +1,101 @@
+id: order-cancellation
+version: 1
+name: Order cancellation
+route: /orders/{orderId}/cancel
+purpose: Let an eligible customer request cancellation once and understand the durable processing outcome.
+
+actors:
+  - id: customer
+    permissions:
+      - order.cancel.own
+
+entry_points:
+  - source: order-detail
+    condition: Customer can view the order and cancellation capability is discoverable
+
+layout:
+  regions:
+    - id: order-summary
+      priority: primary
+      purpose: Show order identity, payment state, shipment state, and cancellation eligibility
+    - id: cancellation-form
+      priority: primary
+      purpose: Collect the authoritative cancellation reason and submit the request
+    - id: cancellation-result
+      priority: secondary
+      purpose: Present validation, conflict, pending, completion, or recovery information
+
+fields:
+  - id: reason-code
+    type: select
+    required: true
+    validation_owner: backend
+    data_source: getCancellationOptions
+  - id: reason-detail
+    type: textarea
+    required: false
+    validation_owner: shared
+    data_source: customer-input
+
+actions:
+  - id: submit-cancellation
+    intent: Request cancellation for the current eligible order
+    kind: destructive
+    operation_id: requestOrderCancellation
+    permission: order.cancel.own
+    destructive: true
+    idempotency_required: true
+
+states:
+  initial:
+    behavior: Render the order context and begin capability and option queries.
+  loading:
+    behavior: Keep the order identity visible and reserve stable form and result regions.
+  ready:
+    behavior: Show eligibility evidence, reason controls, consequences, and the destructive submit action.
+  empty:
+    behavior: Explain that no cancellation reasons are currently available and provide support guidance.
+  partial:
+    behavior: Show order state while disabling submission if authoritative reason options are unavailable.
+  stale:
+    behavior: Warn that order state may have changed and require refresh before submission.
+  validation_error:
+    behavior: Preserve entered detail, associate errors with fields, and focus the validation summary.
+  system_error:
+    behavior: Preserve safe context and provide retry only when the operation was not accepted.
+  forbidden:
+    behavior: State that cancellation is unavailable without revealing another customer's order facts.
+  conflict:
+    behavior: Explain changed eligibility, refresh the order summary, and remove unsafe submission.
+  submitting:
+    behavior: Disable repeated submission while allowing navigation only when the durable receipt is known.
+  success:
+    behavior: Show completed or pending status, operation reference, financial effect summary, and next action.
+
+responsive:
+  narrow:
+    behavior: Stack summary, consequences, form, and result in reading order with the destructive action inside the form context.
+  wide:
+    behavior: Keep order summary and consequences visible beside the form without changing DOM reading order.
+
+accessibility:
+  landmarks:
+    - main
+  initial_focus: cancellation-heading
+  error_focus: validation-summary
+  announcements:
+    - cancellation-result
+  keyboard_notes:
+    - The confirmation control is a native button and the reason field has an explicit label and description.
+    - Focus returns to the trigger if a confirmation dialog is cancelled.
+
+telemetry:
+  outcome_events:
+    - order_cancellation_started
+    - order_cancellation_accepted
+    - order_cancellation_completed
+    - order_cancellation_failed
+  prohibited_data:
+    - reason_detail_text
+    - payment_credentials
+    - authentication_tokens

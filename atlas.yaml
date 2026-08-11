@@ -1,0 +1,48 @@
+name: StackForge Atlas
+id: stackforge-atlas
+version: 0.1.0
+status: foundation
+summary: Evidence-backed software engineering guidance and a lightweight agent harness for web applications.
+
+outcomes:
+  - preserve product intent through implementation
+  - connect UI states to backend contracts and domain rules
+  - apply risk-proportional verification and adversarial review
+  - maintain source maps, decisions, and runbooks close to code
+
+capabilities:
+  product_interface:
+    - product framing
+    - user flows
+    - stateful wireframes
+    - design systems
+    - backend interface contracts
+    - UI-backend traceability
+  engineering:
+    - implementation planning
+    - verification evidence
+    - adversarial review
+    - maintenance knowledge
+  expansion:
+    - language profiles
+    - data-store profiles
+    - infrastructure profiles
+    - domain profiles
+    - evaluation suites
+
+standards_baseline:
+  design_tokens: DTCG 2025.10
+  accessibility: WCAG 2.2
+  synchronous_api: OpenAPI 3.2.0
+  asynchronous_api: AsyncAPI 3.0.0
+  schemas: JSON Schema 2020-12
+
+entrypoints:
+  introduction: README.md
+  guide: docs/START-HERE.md
+  agent_rules: AGENTS.md
+  feature_template: templates/feature-slice/README.md
+  worked_example: examples/order-cancellation/README.md
+
+validation:
+  command: python scripts/validate_atlas.py
