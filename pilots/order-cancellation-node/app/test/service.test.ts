@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  ApplicationError,
   OrderCancellationService,
   type CancellationGateway,
   type GatewayOutcome,
@@ -159,4 +160,50 @@ test("stale order version is rejected before the provider is called", async () =
 
   await new Promise<void>((resolve) => setImmediate(resolve));
   assert.equal(gateway.calls, 0);
+});
+
+test("request rejects fields outside the closed OpenAPI schema", () => {
+  const { gateway, service } = fixture();
+
+  assert.throws(
+    () =>
+      service.requestCancellation({
+        actorId: "customer-1",
+        orderId: "order-1001",
+        idempotencyKey: "idem-order-1001-0001",
+        body: { ...validBody, unexpectedField: true },
+      }),
+    (error: unknown) =>
+      error instanceof ApplicationError &&
+      error.statusCode === 400 &&
+      error.fieldErrors.some(
+        (fieldError) =>
+          fieldError.field === "unexpectedField" &&
+          fieldError.code === "UNKNOWN_FIELD",
+      ),
+  );
+  assert.equal(gateway.calls, 0);
+});
+
+test("drain waits for every accepted provider task", async () => {
+  const { gateway, service } = fixture();
+  service.requestCancellation({
+    actorId: "customer-1",
+    orderId: "order-1001",
+    idempotencyKey: "idem-order-1001-0001",
+    body: validBody,
+  });
+
+  let drained = false;
+  const draining = service.drain().then(() => {
+    drained = true;
+  });
+
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(gateway.calls, 1);
+  assert.equal(drained, false);
+
+  gateway.complete();
+  await draining;
+  assert.equal(drained, true);
 });
