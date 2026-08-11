@@ -1,0 +1,72 @@
+version: 1
+project:
+  id: project-id
+  name: Project name
+  status: active
+  risk: medium
+  description: Explain the product boundary and the operational consequence of failure.
+
+stack:
+  runtimes:
+    - id: runtime-id
+      version: supported-version-line
+      status: supported
+  languages:
+    - id: language-id
+      version: version-line
+      status: supported
+  frameworks: []
+
+entrypoints:
+  http:
+    - path/to/server-entrypoint
+  ui:
+    - path/to/ui-entrypoint
+  commands:
+    - command used to start or verify the project
+
+modules:
+  - id: module-id
+    responsibility: One stable reason for this module to change.
+    paths:
+      - path/to/module
+    depends_on: []
+
+interfaces:
+  source_contract: path/to/openapi-or-asyncapi.yaml
+  implementation_manifest: path/to/implementation-manifest.yaml
+  operations:
+    - operationId
+
+data:
+  stores:
+    - id: primary-store
+      type: relational
+      purpose: Authoritative business state
+  transaction_boundary: Define where atomic state changes begin and end.
+  durability: Define what can be lost and what must survive restart.
+
+security:
+  authentication: Describe identity establishment.
+  authorization: Describe object and action authorization.
+  sensitive_data: []
+  known_gaps: []
+
+operations:
+  health: Health endpoint or command
+  logging: Structured event and correlation strategy
+  shutdown: Graceful shutdown behavior
+  recovery: Backup, retry, reconciliation, or restart behavior
+
+quality:
+  commands:
+    - verification command
+  test_suites:
+    - relevant test suite
+  known_limitations: []
+
+maintenance:
+  owners:
+    - engineering-owner
+  change_rules:
+    - Update this map only when structure or operating behavior changes.

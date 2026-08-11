@@ -1,0 +1,56 @@
+version: 1
+contract: ../../examples/order-cancellation/openapi.yaml
+screen_contract: ../../examples/order-cancellation/screen-contract.yaml
+coverage: exact
+runtime:
+  id: node
+  version_line: '24'
+operations:
+  - operation_id: getOrderCancellationContext
+    method: GET
+    path: /orders/{orderId}/cancellation-context
+    handler: app/src/http.ts#createRequestHandler
+    evidence:
+      - app/test/http.test.ts#HTTP contract carries context, command receipt, and durable completion
+      - app/test/service.test.ts#context is permission-safe and exposes authoritative capability
+  - operation_id: requestOrderCancellation
+    method: POST
+    path: /orders/{orderId}/cancellations
+    handler: app/src/http.ts#createRequestHandler
+    evidence:
+      - app/test/http.test.ts#concurrent distinct keys create at most one provider operation
+      - app/test/service.test.ts#same idempotency key replays while a changed payload conflicts
+      - app/test/service.test.ts#stale order version is rejected before the provider is called
+  - operation_id: getOrderCancellation
+    method: GET
+    path: /order-cancellations/{cancellationId}
+    handler: app/src/http.ts#createRequestHandler
+    evidence:
+      - app/test/http.test.ts#HTTP contract carries context, command receipt, and durable completion
+      - app/test/service.test.ts#distinct keys cannot bypass the protected cancellation transition
+ui:
+  entrypoint: app/public/index.html
+  state_coverage: accounted
+  implemented_states:
+    - initial
+    - loading
+    - ready
+    - validation_error
+    - system_error
+    - forbidden
+    - conflict
+    - submitting
+    - pending
+    - terminal_error
+    - success
+  deferred_states:
+    - state: empty
+      reason: The pilot fixture always returns authoritative cancellation reasons; an empty-option fixture and recovery path remain to be implemented.
+    - state: partial
+      reason: The cancellation context is atomic in this pilot, so dependency failure maps to system_error rather than a partial representation.
+    - state: stale
+      reason: The pilot has no push freshness signal; a stale version is detected at submission and represented through the conflict recovery path.
+  evidence:
+    - app/public/app.js
+    - app/test/http.test.ts#runnable UI and health endpoint are served
+    - app/test/http.test.ts#browser pilot retains a durable operation reference across reloads

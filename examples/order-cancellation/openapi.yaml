@@ -1,7 +1,7 @@
 openapi: 3.2.0
 info:
   title: Order Cancellation API
-  version: 0.2.0
+  version: 0.3.0
   summary: Customer self-service cancellation read, command, and durable status contracts.
 servers:
   - url: https://api.example.test
@@ -285,6 +285,17 @@ components:
                 type: string
               message:
                 type: string
+        details:
+          type: object
+          additionalProperties: false
+          properties:
+            currentVersion:
+              type: integer
+              minimum: 1
+            reasonCode:
+              type: string
+            cancellationId:
+              type: string
   responses:
     AuthenticationRequired:
       description: Customer authentication is missing or invalid.
@@ -311,7 +322,7 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
     Conflict:
-      description: Order changed or is no longer eligible.
+      description: Order changed or is no longer eligible; bounded recovery details may be returned.
       content:
         application/json:
           schema:

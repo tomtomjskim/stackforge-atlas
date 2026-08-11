@@ -1,0 +1,57 @@
+id: typescript-node
+version: 1
+status: pilot
+review:
+  reviewed_at: '2026-08-11'
+  review_due: '2027-02-11'
+  owner: stackforge-atlas maintainers
+runtime:
+  name: Node.js
+  version_line: '24'
+  support_status: LTS
+language:
+  name: TypeScript
+  version_line: '6.0'
+toolchain:
+  package_manager: npm
+  type_checker: '@typescript/typescript6 tsc6'
+  test_runner: node:test
+commands:
+  install: npm ci --ignore-scripts --no-audit --no-fund
+  typecheck: npm run typecheck
+  test: npm test
+  verify: npm run check
+fit:
+  strong:
+    - Typed web interfaces and application services with a shared browser and server language
+    - Dependency-light services using stable Node platform APIs
+    - Agent work where strict compiler feedback and executable contract tests are available
+  weak:
+    - CPU-bound work without worker or native-extension design
+    - Teams that cannot maintain package and runtime upgrade discipline
+  avoid_when:
+    - The target production runtime is outside an actively supported Node LTS line
+    - The task requires pretending experimental platform APIs are production defaults
+agent_guidance:
+  mandatory_checks:
+    - Keep strict type checking enabled and execute it separately from runtime tests.
+    - Declare Node runtime and TypeScript lines explicitly rather than relying on a developer workstation.
+    - Preserve operation IDs and stable error codes across UI and backend consumers.
+    - Test idempotency, stale state, authorization, and asynchronous terminal outcomes for high-risk commands.
+  common_failures:
+    - Treating a successful HTTP write as proof that an external side effect completed
+    - Using TypeScript types as runtime validation
+    - Starting asynchronous work before persisting or protecting the accepted transition
+    - Logging request bodies, bearer credentials, or free-text personal data
+    - Assuming event-loop serialization replaces a database transaction across processes
+  context_files:
+    - pilots/order-cancellation-node/project-map.yaml
+    - pilots/order-cancellation-node/implementation-manifest.yaml
+    - pilots/order-cancellation-node/evaluation/eval-case.yaml
+evidence:
+  pilot: pilots/order-cancellation-node/README.md
+  sources:
+    - https://nodejs.org/en/about/previous-releases
+    - https://www.typescriptlang.org/docs/handbook/release-notes/typescript-6-0.html
+    - https://nodejs.org/api/test.html
+  confidence: medium

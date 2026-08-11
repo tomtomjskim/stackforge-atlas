@@ -1,4 +1,7 @@
 __pycache__/
 *.py[cod]
 .venv/
+node_modules/
+dist/
+coverage/
 .DS_Store

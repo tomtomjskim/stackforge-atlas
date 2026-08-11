@@ -1,0 +1,61 @@
+id: ORDER-CANCEL-NODE-001
+version: 1
+status: active
+risk: high
+
+fixture:
+  project_map: ../project-map.yaml
+  implementation_manifest: ../implementation-manifest.yaml
+  implementation_root: ../app
+  source_contract: ../../../examples/order-cancellation/openapi.yaml
+
+task:
+  prompt: Implement the customer order-cancellation vertical slice so that the screen loads authoritative capability data, submits an idempotent and version-protected cancellation, follows a durable pending operation, exposes stable failure states, and keeps UI behavior traceable to the shared OpenAPI contract.
+  goals:
+    - Preserve the three declared operation IDs and response semantics.
+    - Enforce owner scope, order version, eligibility, and at-most-one provider effect.
+    - Render loading, validation, conflict, pending, success, terminal failure, and safe recovery states.
+    - Produce executable evidence for domain and HTTP behavior.
+  non_goals:
+    - Production identity, payment-provider, or database implementation.
+    - Framework comparison or performance benchmark.
+    - Redesign of the shared product contract.
+
+acceptance:
+  commands:
+    - cd pilots/order-cancellation-node/app && npm ci --ignore-scripts --no-audit --no-fund
+    - cd pilots/order-cancellation-node/app && npm run check
+    - python scripts/validate_atlas.py
+    - python scripts/validate_pilots.py
+  scenarios:
+    - id: permission-safe-context
+      expectation: A foreign actor cannot discover an order while the owner receives authoritative capability, reasons, amount, and version.
+    - id: idempotent-replay
+      expectation: Repeating the same payload and idempotency key returns the original cancellation and does not call the provider twice.
+    - id: idempotency-mismatch
+      expectation: Reusing a key with changed payload produces a stable conflict rather than mutating the accepted operation.
+    - id: stale-version
+      expectation: A stale expectedVersion is rejected before provider invocation and includes the current version in bounded error details.
+    - id: concurrent-distinct-keys
+      expectation: Two concurrent requests with different keys produce one accepted operation, one conflict, and one provider call.
+    - id: durable-pending-status
+      expectation: The command returns 202 and Location while a later status query reaches a terminal completed or failed state.
+    - id: browser-refresh-reference
+      expectation: The browser stores an accepted operation reference, resumes status polling after refresh, and clears the reference after a terminal result.
+    - id: structured-safe-log
+      expectation: Completion logging contains route, trace, status, and duration without authorization or request-body data.
+  forbidden_changes:
+    - Renaming or removing a shared OpenAPI operationId.
+    - Treating 202 Accepted as completed without a status resource.
+    - Moving authoritative eligibility or ownership rules into browser-only code.
+    - Logging bearer credentials or free-text cancellation detail.
+
+modes:
+  - model-only
+  - minimal-harness
+  - skill-loaded
+  - full-workflow
+
+evidence:
+  result: partial
+  notes: The full-workflow implementation and automated tests exist. Controlled repeated runs across all four harness modes have not yet been executed, so no comparative model-performance claim is made.
