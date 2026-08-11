@@ -10,7 +10,7 @@ Start with the [Node.js order-cancellation pilot](../pilots/order-cancellation-n
 
 ```bash
 cd pilots/order-cancellation-node/app
-npm install --ignore-scripts --no-audit --no-fund
+npm ci --ignore-scripts --no-audit --no-fund
 npm run check
 npm start
 ```
@@ -87,7 +87,7 @@ python scripts/validate_atlas.py
 python scripts/validate_pilots.py
 
 cd pilots/order-cancellation-node/app
-npm install --ignore-scripts --no-audit --no-fund
+npm ci --ignore-scripts --no-audit --no-fund
 npm run check
 ```
 

@@ -40,7 +40,7 @@ Node.js 24 is the declared pilot baseline.
 
 ```bash
 cd pilots/order-cancellation-node/app
-npm install --ignore-scripts --no-audit --no-fund
+npm ci --ignore-scripts --no-audit --no-fund
 npm run check
 npm start
 ```
@@ -64,6 +64,6 @@ This pilot does **not** prove production readiness.
 - The provider is simulated.
 - Browser automation, visual regression, load tests, database migrations, backup, and reconciliation after process loss are absent.
 - Node's native HTTP adapter was selected to minimize framework-specific noise; it is not a recommendation to avoid mature frameworks.
-- Direct development dependencies are exact, but this pilot does not yet establish a repository-wide lockfile and update policy.
+- Pilot dependencies are committed through a lockfile, but a repository-wide dependency-update and provenance policy is not yet established.
 
 Those omissions are explicit so later Python, PHP, database, and infrastructure pilots can test the same contract without inheriting false assumptions.

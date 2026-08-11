@@ -17,7 +17,7 @@ toolchain:
   type_checker: '@typescript/typescript6 tsc6'
   test_runner: node:test
 commands:
-  install: npm install --ignore-scripts --no-audit --no-fund
+  install: npm ci --ignore-scripts --no-audit --no-fund
   typecheck: npm run typecheck
   test: npm test
   verify: npm run check

@@ -29,7 +29,7 @@ entrypoints:
     - app/public/app.js
     - app/public/styles.css
   commands:
-    - cd pilots/order-cancellation-node/app && npm install --ignore-scripts --no-audit --no-fund
+    - cd pilots/order-cancellation-node/app && npm ci --ignore-scripts --no-audit --no-fund
     - cd pilots/order-cancellation-node/app && npm run check
     - cd pilots/order-cancellation-node/app && npm start
 

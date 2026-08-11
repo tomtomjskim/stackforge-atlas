@@ -23,7 +23,7 @@ task:
 
 acceptance:
   commands:
-    - cd pilots/order-cancellation-node/app && npm install --ignore-scripts --no-audit --no-fund
+    - cd pilots/order-cancellation-node/app && npm ci --ignore-scripts --no-audit --no-fund
     - cd pilots/order-cancellation-node/app && npm run check
     - python scripts/validate_atlas.py
     - python scripts/validate_pilots.py
