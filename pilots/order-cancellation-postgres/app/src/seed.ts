@@ -46,12 +46,14 @@ async function main(): Promise<void> {
   const pool = createDatabasePool();
   try {
     await waitForDatabase(pool);
-    await migrate(pool);
+    const target = process.env.MIGRATION_TARGET?.trim() || undefined;
+    await migrate(pool, target ? { target } : {});
     await seedOrder(pool);
     console.log(JSON.stringify({
       event: "database.seeded",
       pilotActor: "customer-1",
       pilotOrder: "order-1001",
+      migrationTarget: target ?? "latest",
     }));
   } finally {
     await pool.end();

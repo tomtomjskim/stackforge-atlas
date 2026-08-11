@@ -52,11 +52,18 @@ recovery:
     - id: unknown-provider-outcome
       expectation: Exhausted transport retries keep the operation pending, quarantine the outbox row, and create reconciliation audit evidence instead of declaring failure.
       evidence: app/test/retry.test.ts#retry exhaustion keeps the operation pending for reconciliation instead of declaring failure
+    - id: operator-reconciliation
+      expectation: An authoritative operator resolution finalizes cancellation, order, outbox, reconciliation, and audit state in one transaction.
+      evidence: app/test/operational.test.ts#completed reconciliation resolves cancellation, order, outbox, and audit atomically
+    - id: database-process-restart
+      expectation: Committed pending work survives PostgreSQL immediate shutdown and resumes from the same persistent data volume.
+      evidence: operational/run-recovery-drill.sh#docker kill --signal=SIGQUIT
     - id: audit-immutability
       expectation: Application credentials cannot update or delete audit rows.
       evidence: app/test/database.test.ts#audit events reject update and delete mutations
 limitations:
-  - PostgreSQL server restart, crash recovery, backup restore, PITR, replication, and failover are not exercised.
-  - The simulated provider shares the pilot database and does not prove a real provider's idempotency contract.
+  - The operational drill restarts one PostgreSQL container and persistent volume; host loss, storage corruption, replication, and failover are not exercised.
+  - Logical backup restore is exercised, but continuous WAL archiving and PITR are not configured.
+  - The simulated provider shares the pilot database and does not prove a real provider's idempotency or status contract.
   - Lease timing and lock contention are verified functionally, not under load.
-  - Reconciliation-required work is quarantined but no operator resolution or provider-status lookup workflow is implemented.
+  - Reconciliation is exposed through a CLI and service contract, not a production authenticated administration surface.

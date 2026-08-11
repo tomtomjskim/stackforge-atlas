@@ -1,10 +1,10 @@
 version: 1
 project:
   id: order-cancellation-postgres-pilot
-  name: Order cancellation PostgreSQL durability pilot
+  name: Order cancellation PostgreSQL operational-recovery pilot
   status: pilot
   risk: high
-  description: Runnable persistence pilot proving transaction, rollback, idempotency, outbox delivery, worker lease recovery, unknown-outcome quarantine, append-only audit evidence, and application-instance restart continuity for the shared order-cancellation contract.
+  description: Runnable persistence and recovery pilot proving transaction rollback, idempotency, outbox leasing, unknown-outcome reconciliation, PostgreSQL immediate restart on persistent storage, retained-data migration, guarded rollback, and independent logical backup restore for the shared order-cancellation contract.
 
 stack:
   runtimes:
@@ -17,10 +17,13 @@ stack:
   languages:
     - id: typescript
       version: '6.0'
-      status: Strict application and test code
+      status: Strict application, operator, and test code
     - id: sql
       version: postgresql-18
-      status: Explicit schema, transaction, locking, and worker queries
+      status: Explicit schema, transaction, locking, worker, reconciliation, and health queries
+    - id: bash
+      version: posix-plus-gnu
+      status: Container lifecycle and recovery-drill orchestration
   frameworks:
     - id: node-http
       version: built-in
@@ -28,6 +31,9 @@ stack:
     - id: node-postgres
       version: '8.16.3'
       status: Low-level PostgreSQL driver
+    - id: docker
+      version: current-github-runner
+      status: Isolated persistent-volume crash and restore drill
 
 entrypoints:
   http:
@@ -40,13 +46,15 @@ entrypoints:
   commands:
     - cd pilots/order-cancellation-postgres/app && npm ci --ignore-scripts --no-audit --no-fund
     - cd pilots/order-cancellation-postgres/app && npm run migrate
-    - cd pilots/order-cancellation-postgres/app && npm run seed
+    - cd pilots/order-cancellation-postgres/app && npm run rollback -- 002_reconciliation_cases.sql
+    - cd pilots/order-cancellation-postgres/app && npm run ops -- health
     - cd pilots/order-cancellation-postgres/app && npm run check
+    - bash pilots/order-cancellation-postgres/operational/run-recovery-drill.sh
     - cd pilots/order-cancellation-postgres && docker compose up
 
 modules:
   - id: shared-product-interface
-    responsibility: Reuse the previously verified browser surface so this pilot changes persistence and recovery semantics without introducing a second UI implementation.
+    responsibility: Reuse the previously verified browser surface so persistence and recovery work does not introduce a second UI implementation.
     paths:
       - ../order-cancellation-node/app/public
     depends_on:
@@ -66,20 +74,36 @@ modules:
     depends_on:
       - postgres-database
   - id: outbox-worker
-    responsibility: Claim available work with a bounded lease, call an idempotent provider adapter, finalize durable state, and recover abandoned claims.
+    responsibility: Claim available work with a bounded lease, call an idempotent provider adapter, finalize explicit outcomes, and quarantine transport-ambiguous outcomes.
     paths:
       - app/src/worker.ts
       - app/src/worker-main.ts
     depends_on:
       - postgres-database
+  - id: reconciliation-operations
+    responsibility: List unknown external outcomes, expose operational health, and atomically apply an authoritative operator resolution without losing audit history.
+    paths:
+      - app/src/reconciliation.ts
+      - app/src/ops-main.ts
+      - app/test/operational.test.ts
+    depends_on:
+      - postgres-database
   - id: postgres-database
-    responsibility: Provide schema migrations, row locks, uniqueness constraints, persisted operations, append-only audit records, and idempotent provider-effect evidence.
+    responsibility: Provide ordered migrations, guarded rollback, row locks, uniqueness constraints, persisted operations, reconciliation cases, health signals, append-only audit records, and provider-effect evidence.
     paths:
       - migrations
       - app/src/db.ts
       - app/src/migrate.ts
+      - app/src/rollback.ts
       - app/src/seed.ts
     depends_on: []
+  - id: operational-recovery-drill
+    responsibility: Exercise immediate PostgreSQL shutdown and restart, retained-data migration, isolated rollback, logical backup, independent restore, reconciliation, and observed recovery evidence.
+    paths:
+      - operational
+    depends_on:
+      - postgres-database
+      - reconciliation-operations
 
 interfaces:
   source_contract: ../../examples/order-cancellation/openapi.yaml
@@ -93,28 +117,33 @@ data:
   stores:
     - id: postgres-primary
       type: PostgreSQL 18.4
-      purpose: Orders, cancellation operations, idempotency identity, outbox work, provider-effect evidence, and append-only audit events
-  transaction_boundary: requestCancellation uses one Read Committed transaction, an idempotency advisory lock, a row-level order lock, unique constraints, and atomic writes to the order, cancellation, outbox, and audit tables.
-  durability: Accepted operations and undispatched outbox events survive application pool replacement; expired worker leases can be reclaimed, and repeated provider delivery converges through a unique provider-effect identity.
+      purpose: Orders, cancellation operations, actor-scoped idempotency identity, outbox work, reconciliation cases, provider-effect evidence, migration history, and append-only audit events
+    - id: postgres-restore-drill
+      type: Independent PostgreSQL 18.4 volume
+      purpose: Logical restore comparison and isolated migration rollback verification
+  transaction_boundary: requestCancellation uses one Read Committed transaction, an idempotency advisory lock, a row-level order lock, unique constraints, and atomic writes to the order, cancellation, outbox, and audit tables; reconciliation resolution uses a separate bounded transaction over the case, cancellation, outbox, order, and audit state.
+  durability: Accepted operations survive application and PostgreSQL process replacement on the same persistent volume; Outbox work can be reclaimed; unknown outcomes remain protected until operator reconciliation; custom logical backups restore into an independent volume with compared domain and migration evidence.
 
 security:
   authentication: Bearer values remain fixture actor identifiers and are not presented as production identity.
-  authorization: Order and cancellation reads are actor-scoped; protected writes lock the owned order and return permission-safe not-found responses.
+  authorization: Order and cancellation reads are actor-scoped; operator reconciliation is a pilot CLI and requires a recorded actor but is not a production authorization system.
   sensitive_data:
     - cancellation free-text reason detail
     - payment and refund amount
     - bearer credential
     - database connection credential
+    - provider reference and operator reconciliation note
   known_gaps:
-    - The pilot does not implement production authentication, session security, row-level security, or secret rotation.
-    - The provider effect is simulated in PostgreSQL rather than exercised against a real external payment service.
+    - The pilot does not implement production authentication, session security, row-level security, secret rotation, or a privileged operator role.
+    - The provider effect and provider-status lookup remain simulated rather than exercised against a real external payment service.
     - Audit append-only enforcement is database-local and not a tamper-evident external archive.
+    - Backup artifacts use fixture credentials and data only; production encryption and access controls are not demonstrated.
 
 operations:
-  health: GET /health checks process availability and executes SELECT 1 against PostgreSQL.
-  logging: HTTP completion and worker result logs are structured and omit request bodies, bearer values, and free-text reasons.
-  shutdown: The HTTP process stops accepting requests before closing its pool; the worker exits its claim loop before draining the pool.
-  recovery: Persisted pending operations are completed by a later worker instance; expired leases are reclaimed; repeated provider delivery converges through a durable cancellation identity; explicit provider rejection releases the order; and unknown outcomes remain pending in a quarantined reconciliation state.
+  health: GET /health checks process availability and executes SELECT 1; operational_recovery_health reports pending cancellations, ready outbox work, expired leases, open reconciliation cases, and oldest pending age.
+  logging: HTTP completion, worker result, migration, rollback, reconciliation, and drill results are structured and omit request bodies, bearer values, and free-text cancellation reasons.
+  shutdown: The HTTP process stops accepting requests before closing its pool; the worker exits its claim loop before draining the pool; the recovery drill separately uses PostgreSQL SIGQUIT to force WAL recovery on restart.
+  recovery: Persisted pending operations resume after PostgreSQL restarts on the same volume; migration 002 is applied over retained data; rollback is guarded before migration-specific rows exist; custom backups restore into an independent volume; unknown provider outcomes require an explicit operator resolution.
 
 quality:
   commands:
@@ -123,15 +152,20 @@ quality:
     - npm run check
     - python scripts/validate_atlas.py
     - python scripts/validate_pilots.py
+    - python scripts/validate_durability_pilots.py
+    - python scripts/validate_operational_recovery.py
+    - bash pilots/order-cancellation-postgres/operational/run-recovery-drill.sh
   test_suites:
     - app/test/database.test.ts
     - app/test/http.test.ts
     - app/test/retry.test.ts
+    - app/test/operational.test.ts
   known_limitations:
-    - Restart evidence replaces the application pool and service instance but does not reboot the PostgreSQL server.
-    - No point-in-time recovery, backup restore, failover, replication, or schema rollback drill is executed.
-    - The outbox provider simulation proves idempotent convergence, not exactly-once external delivery.
-    - Reconciliation-required work is quarantined and audited, but no operator resolution command or scheduled provider-status query is implemented yet.
+    - The drill reuses an intact persistent volume and does not simulate host or storage loss, corruption, replication, or failover.
+    - Custom-format logical backup restore is exercised; continuous WAL archiving and point-in-time recovery are not configured.
+    - Observed restart and restore timing is CI evidence, not a production RTO or RPO commitment.
+    - The outbox provider simulation proves idempotent convergence and reconciliation behavior, not exactly-once external delivery.
+    - Operator reconciliation is a CLI and service contract rather than a production authenticated administration surface.
     - Performance, lock contention at scale, connection-pool sizing, and long-running worker behavior are not measured.
     - The shared UI remains source and HTTP tested rather than browser-automated in this pilot.
 
@@ -142,5 +176,7 @@ maintenance:
     - Preserve the shared OpenAPI operation IDs and error semantics.
     - Treat migrations as immutable after merge and add a new numbered migration for change.
     - Keep request acceptance, outbox creation, and audit evidence in one transaction.
+    - Do not force a down migration after migration-specific data exists; use a forward repair migration.
+    - Do not convert an unknown provider outcome into failure; keep the order protected until authoritative reconciliation.
     - Do not claim exactly-once delivery; require provider idempotency and reconciliation evidence.
-    - Add a regression test before changing locks, uniqueness constraints, lease rules, retry policy, or rollback behavior.
+    - Add regression evidence before changing locks, uniqueness constraints, lease rules, retry policy, backup, restore, or rollback behavior.

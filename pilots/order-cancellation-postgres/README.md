@@ -1,60 +1,70 @@
-# Durability Pilot — Order Cancellation on PostgreSQL
+# PostgreSQL Pilot — From Durable Command to Recovery Evidence
 
-This pilot takes the same order-cancellation product, screen, and OpenAPI contracts used by the Node.js in-memory pilot and changes one variable: **the authoritative state now lives in PostgreSQL**.
+This pilot keeps the order-cancellation product, screen, and OpenAPI contracts fixed while changing the data and recovery boundary.
 
-The purpose is not to claim production readiness. It is to verify that an accepted high-risk command survives application-instance replacement and that the database makes the following relationships explicit:
+The first stage proved that accepted state lives outside one application process. The operational stage now exercises a PostgreSQL immediate restart on persistent storage, a retained-data migration, a guarded rollback boundary, logical backup and independent restore, and explicit operator resolution for unknown provider outcomes.
 
 ```text
 customer command
     ↓
-idempotency identity
+locked transactional acceptance
     ↓
-locked order decision
+order + cancellation + outbox + audit commit
     ↓
-cancellation operation
-    + order state transition
-    + outbox event
-    + audit event
-    ↓ one transaction commits
-worker lease
+worker delivery
+    ├─ explicit completion
+    ├─ explicit rejection
+    └─ unknown outcome → protected reconciliation case
+
+persistent database
     ↓
-idempotent provider effect
+SIGQUIT immediate shutdown
     ↓
-completed, failed, or reconciliation-required durable result
+WAL recovery on the same data volume
+    ↓
+forward migration + pending-work recovery
+    ↓
+logical backup + independent restore comparison
 ```
 
-## What this proves
+## What is verified
 
-- one `Read Committed` transaction protects order eligibility with a row lock;
-- the actor-scoped idempotency key is serialized and constrained in PostgreSQL;
-- order state, cancellation operation, outbox work, and audit evidence commit atomically;
-- the provider call occurs **after** commit, outside the database transaction;
-- workers claim work with `FOR UPDATE SKIP LOCKED` and a reclaimable lease;
-- an expired worker claim can recover after the provider effect without creating a second effect row;
-- exhausted transport retries preserve a `PENDING` operation for reconciliation instead of declaring a possibly false failure;
-- pending operations and outbox rows survive application pool replacement;
-- audit rows reject `UPDATE` and `DELETE`;
-- the three shared OpenAPI operations and the previously built browser UI remain unchanged.
+### Transaction and worker durability
 
-## Run with Docker Compose
+- one `Read Committed` transaction protects eligibility and acceptance;
+- actor-scoped idempotency is serialized and constrained in PostgreSQL;
+- order state, cancellation operation, Outbox work, and audit evidence commit or roll back together;
+- provider work occurs after commit;
+- workers use `FOR UPDATE SKIP LOCKED` and an expiring lease;
+- duplicate delivery converges through a stable provider identity;
+- transport-ambiguous exhaustion stays `PENDING` and opens reconciliation instead of becoming a false failure.
 
-Requirements: Docker with Compose support.
+### Operational recovery subset
+
+- PostgreSQL receives `SIGQUIT`, stops without a normal checkpoint, and restarts on the same named volume;
+- committed order, cancellation, Outbox, and audit markers are compared before and after recovery;
+- migration `002_reconciliation_cases` applies over retained `001` data;
+- its down migration is exercised on an isolated pre-002 restore and refuses rollback after reconciliation rows exist;
+- a custom-format `pg_dump` restores into an independent PostgreSQL volume;
+- primary and restored business, migration, and reconciliation counts are compared;
+- an operator service and CLI can list and atomically resolve unknown provider outcomes;
+- operational health exposes pending work, ready Outbox work, expired leases, open reconciliation cases, and oldest pending age.
+
+## Run the application
 
 ```bash
 cd pilots/order-cancellation-postgres
 docker compose up
 ```
 
-Open `http://127.0.0.1:3001`. The seeded fixture remains:
+Open `http://127.0.0.1:3001` with the fixture:
 
 ```text
 actor: customer-1
 order: order-1001
 ```
 
-PostgreSQL is exposed on local port `55432` for inspection.
-
-## Run against an existing PostgreSQL 18 instance
+## Run verification against PostgreSQL
 
 ```bash
 export DATABASE_URL='postgresql://stackforge:stackforge@127.0.0.1:5432/stackforge'
@@ -66,52 +76,58 @@ npm run seed
 npm run check
 ```
 
-Run the HTTP and worker processes separately:
+## Run the operational recovery drill
 
 ```bash
-npm start
-npm run worker
+cd pilots/order-cancellation-postgres/app
+npm ci --ignore-scripts --no-audit --no-fund
+cd ../../..
+
+bash pilots/order-cancellation-postgres/operational/run-recovery-drill.sh
 ```
 
-## Read the evidence
+The drill writes an evidence bundle containing snapshots, crash-recovery logs, backup archives, reconciliation results, and `operational-recovery-report.json`.
 
-1. [`project-map.yaml`](./project-map.yaml) describes boundaries, transaction ownership, recovery, and known gaps.
-2. [`durability-manifest.yaml`](./durability-manifest.yaml) records the migration, protected resources, outbox lease, provider identity, audit enforcement, and recovery evidence.
-3. [`implementation-manifest.yaml`](./implementation-manifest.yaml) maps the shared OpenAPI operations to handlers and tests.
-4. [`evaluation/eval-case.yaml`](./evaluation/eval-case.yaml) fixes the durability scenarios for later PostgreSQL, MySQL, Python, PHP, and harness comparisons.
-5. [`migrations/001_order_cancellation.sql`](./migrations/001_order_cancellation.sql) is the executable schema.
-6. [`app/test/database.test.ts`](./app/test/database.test.ts) exercises transaction, rollback, concurrency, restart, lease, and audit behavior.
-7. [`app/test/retry.test.ts`](./app/test/retry.test.ts) distinguishes explicit provider rejection from unknown transport outcome.
+## Operator reconciliation
 
-## Delivery semantics
+```bash
+cd pilots/order-cancellation-postgres/app
 
-This pilot deliberately does **not** use the phrase “exactly once.”
-
-The database transaction guarantees that accepted local state and outbox work are committed together. A worker can still call an external provider and crash before recording the local result. The safe design is therefore:
-
-```text
-at-least-once worker delivery
-+
-stable provider idempotency identity
-+
-durable local reconciliation
+npm run ops -- list-reconciliation
+npm run ops -- health
+npm run ops -- resolve-reconciliation \
+  --case 1 \
+  --resolution completed \
+  --actor operator-1 \
+  --provider-reference provider-reference-123 \
+  --note "Authoritative provider lookup confirmed completion."
 ```
 
-The simulated provider stores one row per `cancellation_id` and increments a call counter when the same effect is observed again. This demonstrates convergence under duplicate delivery, not a real payment provider guarantee. When repeated calls still have an unknown outcome, the operation remains `PENDING` with `RECONCILIATION_REQUIRED`; it is not converted into a convenient but unsafe terminal failure.
+An exhausted network retry is not enough to release the order. The case remains open until an authoritative provider result is recorded.
+
+## Evidence map
+
+1. [`project-map.yaml`](./project-map.yaml) describes ownership, modules, data, and recovery boundaries.
+2. [`durability-manifest.yaml`](./durability-manifest.yaml) records transaction, Outbox, audit, and durability evidence.
+3. [`operational/manifest.yaml`](./operational/manifest.yaml) records the recovery drill and its claim boundary.
+4. [`operational/runbook.md`](./operational/runbook.md) describes response and reconciliation procedure.
+5. [`operational/alerts.yaml`](./operational/alerts.yaml) defines the minimum actionable signals.
+6. [`migrations/002_reconciliation_cases.sql`](./migrations/002_reconciliation_cases.sql) adds cases and operational health.
+7. [`app/test/operational.test.ts`](./app/test/operational.test.ts) verifies the operator resolution transaction.
 
 ## Evidence boundary
 
-Current level: **Durable subset**.
+Current level: **Operational recovery subset**.
 
-Not yet proven:
+Still not proven:
 
-- PostgreSQL process or host restart;
-- WAL recovery, PITR, backup restore, replication, or failover;
-- migration rollback drill against retained production-like data;
-- real payment-provider timeout and reconciliation;
-- multi-region or high-latency behavior;
-- lock contention, pool sizing, sustained throughput, or load shedding;
-- production authentication, secret rotation, or row-level security;
-- real-browser accessibility and visual regression.
+- host or storage loss, corruption, replication, or automated failover;
+- continuous WAL archiving and point-in-time recovery;
+- production RPO/RTO objectives;
+- real payment-provider idempotency and status lookup;
+- production operator authentication and authorization;
+- encrypted backup storage and key management;
+- sustained load, lock-contention limits, and connection-pool sizing;
+- browser automation, accessibility, and visual regression.
 
-Those remain separate evidence gates. A passing transaction test is not a substitute for database operations practice.
+The observed CI timings are evidence from one controlled drill, not production guarantees.

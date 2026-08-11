@@ -1,0 +1,32 @@
+version: 1
+signals:
+  - id: reconciliation-cases-open
+    source: operational_recovery_health.open_reconciliation_cases
+    condition: value > 0
+    severity: critical
+    owner: payment-operations
+    action: List open cases, query authoritative provider status, and resolve through the reconciliation command. Never release the order because retries expired.
+  - id: oldest-pending-operation
+    source: operational_recovery_health.oldest_pending_seconds
+    condition: value > 300
+    severity: warning
+    owner: application-operations
+    action: Inspect worker health, outbox lease state, provider latency, and reconciliation quarantine.
+  - id: expired-worker-lease
+    source: operational_recovery_health.expired_worker_leases
+    condition: value > 0
+    severity: warning
+    owner: application-operations
+    action: Confirm a live worker can reclaim the event and that provider identity remains stable across duplicate delivery.
+  - id: ready-outbox-backlog
+    source: operational_recovery_health.ready_outbox_events
+    condition: value > 10 for 5 minutes
+    severity: warning
+    owner: application-operations
+    action: Check worker availability, connection-pool saturation, lock waits, and provider failures before increasing concurrency.
+  - id: migration-drift
+    source: schema_migrations compared with repository migration inventory
+    condition: applied versions differ from the release manifest
+    severity: critical
+    owner: release-engineering
+    action: Stop deployment, preserve evidence, and reconcile migration state before application traffic resumes.

@@ -1,5 +1,5 @@
 id: ORDER-CANCEL-POSTGRES-001
-version: 1
+version: 2
 status: active
 risk: high
 
@@ -10,21 +10,25 @@ fixture:
   source_contract: ../../../examples/order-cancellation/openapi.yaml
 
 task:
-  prompt: Replace the in-memory order-cancellation state with PostgreSQL durability while preserving the shared screen and OpenAPI contracts. Acceptance, idempotency identity, order transition, outbox work, and audit evidence must commit atomically; workers must recover expired claims and repeated delivery without duplicating the provider effect.
+  prompt: Preserve the shared order-cancellation contract while moving authoritative state and recovery into PostgreSQL. Acceptance, idempotency identity, order transition, outbox work, and audit evidence must commit atomically; workers must recover abandoned work; PostgreSQL restart, retained-data migration, logical restore, and unknown-provider reconciliation must produce executable evidence without claiming exactly-once delivery or production operational readiness.
   goals:
     - Preserve the three declared operation IDs and user-visible failure semantics.
     - Serialize cancellation eligibility per order without globally serializing unrelated orders.
-    - Persist pending operations and outbox work across application-instance restart.
+    - Persist pending operations and outbox work across application and PostgreSQL process restart on the same volume.
     - Demonstrate at-least-once delivery with an idempotent provider identity.
     - Distinguish explicit provider rejection from unknown transport outcome.
-    - Preserve unknown provider outcomes for reconciliation instead of declaring a false terminal failure.
+    - Preserve unknown provider outcomes for operator reconciliation instead of declaring a false terminal failure.
     - Preserve failed attempts while allowing a new versioned attempt after explicit terminal failure.
     - Keep audit evidence append-only and queryable.
-    - Produce executable evidence for transaction, rollback, concurrency, lease recovery, and HTTP behavior.
+    - Apply a forward migration over retained data and exercise a guarded down migration in an isolated restore.
+    - Restore a custom-format logical backup into an independent PostgreSQL volume and compare business, migration, and reconciliation evidence.
+    - Produce actionable operational-health signals and an explicit recovery runbook.
   non_goals:
-    - Real payment-provider integration.
-    - Production authentication or secret management.
-    - PostgreSQL failover, replication, backup restore, or performance benchmark.
+    - Real payment-provider integration or authoritative provider-status API.
+    - Production authentication, operator authorization, secret management, or encrypted backup storage.
+    - Host or storage loss, corruption recovery, replication, automated failover, or multi-region behavior.
+    - Continuous WAL archiving or point-in-time recovery.
+    - Production RPO or RTO commitment.
     - Claiming exactly-once delivery.
 
 acceptance:
@@ -32,9 +36,11 @@ acceptance:
     - cd pilots/order-cancellation-postgres/app && npm ci --ignore-scripts --no-audit --no-fund
     - cd pilots/order-cancellation-postgres/app && npm run migrate
     - cd pilots/order-cancellation-postgres/app && npm run check
+    - bash pilots/order-cancellation-postgres/operational/run-recovery-drill.sh
     - python scripts/validate_atlas.py
     - python scripts/validate_pilots.py
     - python scripts/validate_durability_pilots.py
+    - python scripts/validate_operational_recovery.py
   scenarios:
     - id: atomic-command-outbox-audit
       expectation: One transaction persists cancellation acceptance, order transition, outbox work, and audit evidence or leaves none of them.
@@ -48,12 +54,22 @@ acceptance:
       expectation: Concurrent distinct keys for one order produce one accepted operation and one conflict.
     - id: restart-before-dispatch
       expectation: Closing the accepting application pool does not lose the pending operation or outbox event; a new worker instance completes it.
+    - id: postgres-immediate-restart
+      expectation: SIGQUIT followed by restart on the same data volume preserves committed pending, outbox, and audit evidence and allows later completion.
     - id: expired-lease-after-provider-effect
       expectation: A worker crash after the provider effect but before local completion converges without a duplicate provider-effect row.
     - id: explicit-terminal-provider-failure
       expectation: A provider-declared rejection marks the operation failed and releases the order for a new versioned request.
     - id: unknown-provider-outcome
       expectation: Exhausted transport retries keep the operation pending, quarantine it for reconciliation, and block a second cancellation attempt.
+    - id: operator-reconciliation
+      expectation: An authoritative completed or failed resolution updates case, cancellation, order, outbox, and audit state atomically.
+    - id: retained-data-migration
+      expectation: Migration 002 applies over populated migration 001 state without losing existing business or unfinished-work records.
+    - id: guarded-rollback
+      expectation: Migration 002 rolls back only before reconciliation-specific rows exist and rejects destructive rollback afterward.
+    - id: logical-backup-restore
+      expectation: Custom-format backup restores into an independent PostgreSQL volume with matching business, migration, and reconciliation counts.
     - id: skip-locked-worker-claim
       expectation: Two workers cannot process the same available outbox row concurrently.
     - id: append-only-audit
@@ -64,6 +80,9 @@ acceptance:
     - Holding a database transaction open across the provider call.
     - Claiming exactly-once delivery.
     - Marking an unknown external outcome as failed only because transport retries were exhausted.
+    - Releasing an order before authoritative reconciliation of an unknown provider result.
+    - Forcing a down migration after reconciliation-specific rows exist.
+    - Treating one observed CI recovery time as a production RTO or RPO guarantee.
     - Logging bearer credentials or free-text cancellation detail.
     - Using process memory as the authoritative idempotency or operation store.
 
@@ -75,4 +94,4 @@ modes:
 
 evidence:
   result: partial
-  notes: The full-workflow PostgreSQL implementation and automated durability tests exist. Controlled repeated harness-mode runs, real provider reconciliation, PostgreSQL server restart, and backup or failover exercises have not been completed.
+  notes: The full-workflow PostgreSQL implementation, operational-recovery drill, and automated tests exist. Controlled repeated harness-mode runs, real provider reconciliation, continuous WAL archiving, PITR, replication, failover, and production security remain unverified.

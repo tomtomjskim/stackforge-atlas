@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stackforge-atlas.dev/schemas/operational-recovery-manifest.schema.json",
+  "title": "StackForge Atlas Operational Recovery Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "data_store_profile",
+    "runner",
+    "report_validator",
+    "runbook",
+    "alerts",
+    "crash_recovery",
+    "migration",
+    "logical_backup",
+    "reconciliation",
+    "observability",
+    "scenarios",
+    "limitations",
+    "sources"
+  ],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "status": { "enum": ["draft", "verified-subset", "operational"] },
+    "data_store_profile": { "type": "string", "minLength": 1 },
+    "runner": { "type": "string", "minLength": 1 },
+    "report_validator": { "type": "string", "minLength": 1 },
+    "runbook": { "type": "string", "minLength": 1 },
+    "alerts": { "type": "string", "minLength": 1 },
+    "crash_recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shutdown_signal",
+        "persistent_volume",
+        "expected_semantics",
+        "observed_rto_threshold_ms"
+      ],
+      "properties": {
+        "shutdown_signal": { "enum": ["SIGQUIT"] },
+        "persistent_volume": { "type": "string", "minLength": 10 },
+        "expected_semantics": { "type": "string", "minLength": 20 },
+        "observed_rto_threshold_ms": { "type": "integer", "minimum": 1000 }
+      }
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baseline",
+        "forward",
+        "rollback",
+        "runner",
+        "rollback_runner",
+        "rollback_boundary"
+      ],
+      "properties": {
+        "baseline": { "type": "string" },
+        "forward": { "type": "string" },
+        "rollback": { "type": "string" },
+        "runner": { "type": "string" },
+        "rollback_runner": { "type": "string" },
+        "rollback_boundary": { "type": "string", "minLength": 20 }
+      }
+    },
+    "logical_backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "command",
+        "restore_command",
+        "independent_restore_volume",
+        "observed_rto_threshold_ms"
+      ],
+      "properties": {
+        "format": { "enum": ["custom"] },
+        "command": { "type": "string", "minLength": 10 },
+        "restore_command": { "type": "string", "minLength": 10 },
+        "independent_restore_volume": { "const": true },
+        "observed_rto_threshold_ms": { "type": "integer", "minimum": 1000 }
+      }
+    },
+    "reconciliation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "table",
+        "service",
+        "operator_command",
+        "unknown_outcome_policy"
+      ],
+      "properties": {
+        "table": { "type": "string" },
+        "service": { "type": "string" },
+        "operator_command": { "type": "string" },
+        "unknown_outcome_policy": { "type": "string", "minLength": 30 }
+      }
+    },
+    "observability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["health_view", "alert_catalog", "required_signals"],
+      "properties": {
+        "health_view": { "type": "string" },
+        "alert_catalog": { "type": "string" },
+        "required_signals": {
+          "type": "array",
+          "minItems": 5,
+          "uniqueItems": true,
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "expectation", "evidence"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+          "expectation": { "type": "string", "minLength": 20 },
+          "evidence": { "type": "string", "minLength": 3 }
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "type": "string", "minLength": 20 }
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 3,
+      "items": { "type": "string", "format": "uri" }
+    }
+  }
+}

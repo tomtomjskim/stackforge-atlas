@@ -1,16 +1,16 @@
 name: StackForge Atlas
 id: stackforge-atlas
-version: 0.3.0
-status: durability-pilot
+version: 0.4.0
+status: operational-recovery-pilot
 summary: Evidence-backed software engineering guidance and a lightweight agent harness for web applications.
 
 outcomes:
   - preserve product intent through implementation
   - connect UI states to backend contracts and domain rules
   - apply risk-proportional verification and adversarial review
-  - maintain source maps, decisions, and runbooks close to code
+  - maintain source maps, decisions, runbooks, and recovery knowledge close to code
   - compare stacks and harness modes without changing the product contract
-  - distinguish runnable, durable, operational, and comparative evidence
+  - distinguish runnable, durable, operational-recovery, and comparative evidence
 
 capabilities:
   product_interface:
@@ -25,9 +25,17 @@ capabilities:
     - project maps
     - implementation manifests
     - durability manifests
+    - operational recovery manifests
     - verification evidence
     - adversarial review
     - maintenance knowledge
+  operations:
+    - process restart drills
+    - retained-data migration checks
+    - guarded rollback
+    - logical backup and restore
+    - reconciliation workflows
+    - recovery runbooks and alerts
   evaluation:
     - reusable eval cases
     - runnable cross-stack pilots
@@ -56,9 +64,12 @@ entrypoints:
   project_map_template: templates/project-map/project-map.yaml
   evaluation_template: templates/evaluation/eval-case.yaml
   data_store_template: templates/data-store/profile.yaml
+  operational_recovery_template: templates/operations/postgres-recovery-manifest.yaml
   contract_example: examples/order-cancellation/README.md
   runnable_pilot: pilots/order-cancellation-node/README.md
   durability_pilot: pilots/order-cancellation-postgres/README.md
+  operational_recovery_pilot: pilots/order-cancellation-postgres/operational/README.md
+  recovery_runbook: pilots/order-cancellation-postgres/operational/runbook.md
   language_profile: packs/languages/typescript-node/README.md
   data_store_profile: packs/data-stores/postgresql/README.md
 
@@ -66,5 +77,8 @@ validation:
   atlas_command: python scripts/validate_atlas.py
   pilot_metadata_command: python scripts/validate_pilots.py
   durability_metadata_command: python scripts/validate_durability_pilots.py
+  operational_recovery_metadata_command: python scripts/validate_operational_recovery.py
+  operational_report_command: python scripts/validate_operational_report.py
   node_pilot_command: cd pilots/order-cancellation-node/app && npm run check
   postgres_pilot_command: cd pilots/order-cancellation-postgres/app && npm run check
+  postgres_recovery_command: bash pilots/order-cancellation-postgres/operational/run-recovery-drill.sh
