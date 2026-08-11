@@ -20,6 +20,7 @@ operations:
     evidence:
       - app/test/database.test.ts#same idempotency key replays across transactions while changed payload conflicts
       - app/test/database.test.ts#concurrent distinct keys accept one protected transition and one outbox event
+      - app/test/database.test.ts#transaction rollback leaves no accepted state when outbox insertion fails
       - app/test/retry.test.ts#terminal provider failure releases the order for a new versioned attempt
       - app/test/http.test.ts#PostgreSQL HTTP contract survives worker handoff and durable status lookup
   - operation_id: getOrderCancellation
@@ -29,6 +30,7 @@ operations:
     evidence:
       - app/test/database.test.ts#accepted operation survives application instance restart and completes from persisted outbox
       - app/test/database.test.ts#expired worker lease recovers after provider effect without duplicating the effect row
+      - app/test/retry.test.ts#retry exhaustion keeps the operation pending for reconciliation instead of declaring failure
 ui:
   entrypoint: ../order-cancellation-node/app/public/index.html
   state_coverage: accounted

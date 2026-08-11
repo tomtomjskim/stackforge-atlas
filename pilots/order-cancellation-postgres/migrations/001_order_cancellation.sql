@@ -76,6 +76,7 @@ CREATE TABLE outbox_events (
   locked_by text,
   locked_at timestamptz,
   published_at timestamptz,
+  reconciliation_required_at timestamptz,
   last_error text,
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
@@ -84,7 +85,8 @@ CREATE TABLE outbox_events (
 
 CREATE INDEX outbox_events_ready_idx
   ON outbox_events (available_at, id)
-  WHERE published_at IS NULL;
+  WHERE published_at IS NULL
+    AND reconciliation_required_at IS NULL;
 
 CREATE TABLE provider_cancellation_effects (
   cancellation_id text PRIMARY KEY REFERENCES order_cancellations(id),

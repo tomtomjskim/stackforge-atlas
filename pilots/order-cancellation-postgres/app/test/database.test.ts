@@ -265,6 +265,7 @@ test("expired worker lease recovers after provider effect without duplicating th
   }
 });
 
+
 test("two workers use skip locked so one event is not processed concurrently", async () => {
   const { pool, service } = await createFixture();
   try {
@@ -299,6 +300,63 @@ test("two workers use skip locked so one event is not processed concurrently", a
     );
     assert.deepEqual(effect.rows[0], { rows: 1, calls: 1 });
   } finally {
+    await pool.end();
+  }
+});
+
+
+test("transaction rollback leaves no accepted state when outbox insertion fails", async () => {
+  const { pool, service } = await createFixture();
+  try {
+    await pool.query(`
+      CREATE FUNCTION reject_outbox_insert_for_test()
+      RETURNS trigger
+      LANGUAGE plpgsql
+      AS $$
+      BEGIN
+        RAISE EXCEPTION 'test outbox insert failure';
+      END;
+      $$
+    `);
+    await pool.query(`
+      CREATE TRIGGER reject_outbox_insert_for_test
+      BEFORE INSERT ON outbox_events
+      FOR EACH ROW
+      EXECUTE FUNCTION reject_outbox_insert_for_test()
+    `);
+
+    await assert.rejects(
+      service.requestCancellation({
+        actorId: "customer-1",
+        orderId: "order-1001",
+        idempotencyKey: "idem-order-1001-0001",
+        body: validBody,
+      }),
+      /test outbox insert failure/,
+    );
+
+    const snapshot = await pool.query(`
+      SELECT
+        (SELECT count(*)::integer FROM order_cancellations) AS cancellations,
+        (SELECT count(*)::integer FROM outbox_events) AS outbox_events,
+        (SELECT count(*)::integer FROM audit_events) AS audit_events,
+        (SELECT payment_status FROM orders WHERE id = 'order-1001') AS payment_status,
+        (SELECT version FROM orders WHERE id = 'order-1001') AS version,
+        (SELECT cancellation_id FROM orders WHERE id = 'order-1001') AS cancellation_id
+    `);
+    assert.deepEqual(snapshot.rows[0], {
+      cancellations: 0,
+      outbox_events: 0,
+      audit_events: 0,
+      payment_status: "PAID",
+      version: 1,
+      cancellation_id: null,
+    });
+  } finally {
+    await pool.query(
+      "DROP TRIGGER IF EXISTS reject_outbox_insert_for_test ON outbox_events",
+    );
+    await pool.query("DROP FUNCTION IF EXISTS reject_outbox_insert_for_test()");
     await pool.end();
   }
 });

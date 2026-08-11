@@ -164,7 +164,12 @@ def validate_durability_manifest(path: Path) -> list[str]:
         errors.extend(reference_errors)
         if worker_path and worker_path.exists():
             worker_source = worker_path.read_text(encoding="utf-8")
-            for token in ("FOR UPDATE SKIP LOCKED", "locked_at", "published_at"):
+            for token in (
+                "FOR UPDATE SKIP LOCKED",
+                "locked_at",
+                "published_at",
+                "reconciliation_required_at",
+            ):
                 if token not in worker_source:
                     errors.append(
                         f"{relative(path)}: worker evidence is missing {token!r}"
@@ -199,6 +204,7 @@ def validate_durability_manifest(path: Path) -> list[str]:
             "CREATE TABLE audit_events",
             "CREATE TABLE provider_cancellation_effects",
             "order_cancellations_one_effective_per_order_idx",
+            "reconciliation_required_at",
             "audit_events_append_only",
         )
         for token in required_sql:

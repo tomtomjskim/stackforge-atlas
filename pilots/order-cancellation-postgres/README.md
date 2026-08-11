@@ -20,7 +20,7 @@ worker lease
     ↓
 idempotent provider effect
     ↓
-completed or failed durable result
+completed, failed, or reconciliation-required durable result
 ```
 
 ## What this proves
@@ -31,7 +31,7 @@ completed or failed durable result
 - the provider call occurs **after** commit, outside the database transaction;
 - workers claim work with `FOR UPDATE SKIP LOCKED` and a reclaimable lease;
 - an expired worker claim can recover after the provider effect without creating a second effect row;
-- failed cancellation attempts remain historical records while a new versioned attempt can proceed;
+- exhausted transport retries preserve a `PENDING` operation for reconciliation instead of declaring a possibly false failure;
 - pending operations and outbox rows survive application pool replacement;
 - audit rows reject `UPDATE` and `DELETE`;
 - the three shared OpenAPI operations and the previously built browser UI remain unchanged.
@@ -80,8 +80,8 @@ npm run worker
 3. [`implementation-manifest.yaml`](./implementation-manifest.yaml) maps the shared OpenAPI operations to handlers and tests.
 4. [`evaluation/eval-case.yaml`](./evaluation/eval-case.yaml) fixes the durability scenarios for later PostgreSQL, MySQL, Python, PHP, and harness comparisons.
 5. [`migrations/001_order_cancellation.sql`](./migrations/001_order_cancellation.sql) is the executable schema.
-6. [`app/test/database.test.ts`](./app/test/database.test.ts) exercises transaction, concurrency, restart, lease, and audit behavior.
-7. [`app/test/retry.test.ts`](./app/test/retry.test.ts) verifies failed-operation retention and a new versioned attempt.
+6. [`app/test/database.test.ts`](./app/test/database.test.ts) exercises transaction, rollback, concurrency, restart, lease, and audit behavior.
+7. [`app/test/retry.test.ts`](./app/test/retry.test.ts) distinguishes explicit provider rejection from unknown transport outcome.
 
 ## Delivery semantics
 
@@ -97,7 +97,7 @@ stable provider idempotency identity
 durable local reconciliation
 ```
 
-The simulated provider stores one row per `cancellation_id` and increments a call counter when the same effect is observed again. This demonstrates convergence under duplicate delivery, not a real payment provider guarantee.
+The simulated provider stores one row per `cancellation_id` and increments a call counter when the same effect is observed again. This demonstrates convergence under duplicate delivery, not a real payment provider guarantee. When repeated calls still have an unknown outcome, the operation remains `PENDING` with `RECONCILIATION_REQUIRED`; it is not converted into a convenient but unsafe terminal failure.
 
 ## Evidence boundary
 

@@ -36,7 +36,8 @@ capabilities:
     tested_patterns:
       - application pool replacement
       - abandoned worker lease recovery
-      - terminal failure followed by a new versioned attempt
+      - explicit terminal failure followed by a new versioned attempt
+      - unknown external outcome quarantined for reconciliation
     not_tested:
       - PostgreSQL server restart
       - point-in-time recovery
@@ -60,6 +61,7 @@ agent_guidance:
     - Back application checks with constraints or unique indexes where practical.
     - Define lock order, timeout, retry, and deadlock behavior for concurrent writes.
     - Treat worker delivery as at-least-once unless a stronger guarantee is proven end to end.
+    - Distinguish explicit provider rejection from unknown transport outcome; quarantine and reconcile the latter.
     - Exercise migration, rollback, restart, backup, and restore separately before claiming operational readiness.
   common_failures:
     - Using pool-level queries inside a multi-statement transaction
@@ -67,6 +69,7 @@ agent_guidance:
     - Holding row locks while calling an external API
     - Using SKIP LOCKED without a lease or abandoned-work recovery
     - Assuming an outbox makes the external side effect exactly once
+    - Declaring a terminal failure after timeout retries without checking or reconciling provider state
     - Adding indexes without a concrete query and write-cost analysis
     - Treating JSONB payloads as a substitute for relational constraints
   context_files:

@@ -31,6 +31,13 @@ async function resetDatabase(pool: DatabasePool): Promise<void> {
   await seedOrder(pool);
 }
 
+
+class UnknownOutcomeGateway implements CancellationProviderGateway {
+  async cancel(): Promise<never> {
+    throw new Error("provider timeout after unknown outcome");
+  }
+}
+
 class TerminalFailureGateway implements CancellationProviderGateway {
   async cancel(
     input: Parameters<CancellationProviderGateway["cancel"]>[0],
@@ -98,6 +105,68 @@ test("terminal provider failure releases the order for a new versioned attempt",
       ["order-1001"],
     );
     assert.equal(count.rows[0]?.cancellations, 2);
+  } finally {
+    await pool.end();
+  }
+});
+
+
+test("retry exhaustion keeps the operation pending for reconciliation instead of declaring failure", async () => {
+  const pool = createDatabasePool(databaseUrl);
+  await waitForDatabase(pool);
+  await migrate(pool);
+  await resetDatabase(pool);
+  const service = new PostgresOrderCancellationService(pool);
+
+  try {
+    const accepted = await service.requestCancellation({
+      actorId: "customer-1",
+      orderId: "order-1001",
+      idempotencyKey: "idem-order-1001-0001",
+      body: {
+        reasonCode: "ORDERED_BY_MISTAKE",
+        expectedVersion: 1,
+      },
+    });
+    const worker = new PostgresOutboxWorker({
+      pool,
+      gateway: new UnknownOutcomeGateway(),
+      workerId: "unknown-outcome-worker",
+      maxAttempts: 1,
+    });
+
+    assert.equal(await worker.runOnce(), "reconciliation_required");
+
+    const pending = await service.getCancellation(
+      "customer-1",
+      accepted.cancellationId,
+    );
+    assert.equal(pending.status, "PENDING");
+    assert.equal(pending.outcomeCode, "RECONCILIATION_REQUIRED");
+
+    const snapshot = await pool.query(`
+      SELECT
+        (SELECT payment_status FROM orders WHERE id = 'order-1001') AS payment_status,
+        (SELECT cancellation_id FROM orders WHERE id = 'order-1001') AS cancellation_id,
+        (SELECT published_at FROM outbox_events WHERE aggregate_id = $1) AS published_at,
+        (SELECT reconciliation_required_at IS NOT NULL FROM outbox_events WHERE aggregate_id = $1) AS reconciliation_required,
+        (SELECT count(*)::integer FROM audit_events WHERE action = 'ORDER_CANCELLATION_RECONCILIATION_REQUIRED') AS reconciliation_audits
+    `, [accepted.cancellationId]);
+    assert.deepEqual(snapshot.rows[0], {
+      payment_status: "REFUND_PENDING",
+      cancellation_id: accepted.cancellationId,
+      published_at: null,
+      reconciliation_required: true,
+      reconciliation_audits: 1,
+    });
+
+    const secondWorker = new PostgresOutboxWorker({
+      pool,
+      gateway: new UnknownOutcomeGateway(),
+      workerId: "second-worker",
+      maxAttempts: 1,
+    });
+    assert.equal(await secondWorker.runOnce(), "idle");
   } finally {
     await pool.end();
   }

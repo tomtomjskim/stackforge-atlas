@@ -102,6 +102,23 @@ def main() -> int:
     )
 
     require_rejection(
+        "missing reconciliation quarantine evidence",
+        lambda root: (
+            root
+            / "pilots/order-cancellation-postgres/migrations/001_order_cancellation.sql"
+        ).write_text(
+            (
+                root
+                / "pilots/order-cancellation-postgres/migrations/001_order_cancellation.sql"
+            ).read_text(encoding="utf-8").replace(
+                "reconciliation_required_at",
+                "removed_reconciliation_marker",
+            ),
+            encoding="utf-8",
+        ),
+    )
+
+    require_rejection(
         "missing append-only migration evidence",
         lambda root: (
             root

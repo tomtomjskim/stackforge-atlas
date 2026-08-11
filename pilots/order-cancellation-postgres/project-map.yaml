@@ -4,7 +4,7 @@ project:
   name: Order cancellation PostgreSQL durability pilot
   status: pilot
   risk: high
-  description: Runnable persistence pilot proving transaction, idempotency, outbox delivery, worker lease recovery, append-only audit evidence, failed-attempt retry, and application-instance restart continuity for the shared order-cancellation contract.
+  description: Runnable persistence pilot proving transaction, rollback, idempotency, outbox delivery, worker lease recovery, unknown-outcome quarantine, append-only audit evidence, and application-instance restart continuity for the shared order-cancellation contract.
 
 stack:
   runtimes:
@@ -94,7 +94,7 @@ data:
     - id: postgres-primary
       type: PostgreSQL 18.4
       purpose: Orders, cancellation operations, idempotency identity, outbox work, provider-effect evidence, and append-only audit events
-  transaction_boundary: requestCancellation uses one Read Committed transaction, an idempotency advisory lock, a row-level order lock, partial uniqueness for effective cancellations, and atomic writes to the order, cancellation, outbox, and audit tables.
+  transaction_boundary: requestCancellation uses one Read Committed transaction, an idempotency advisory lock, a row-level order lock, unique constraints, and atomic writes to the order, cancellation, outbox, and audit tables.
   durability: Accepted operations and undispatched outbox events survive application pool replacement; expired worker leases can be reclaimed, and repeated provider delivery converges through a unique provider-effect identity.
 
 security:
@@ -114,7 +114,7 @@ operations:
   health: GET /health checks process availability and executes SELECT 1 against PostgreSQL.
   logging: HTTP completion and worker result logs are structured and omit request bodies, bearer values, and free-text reasons.
   shutdown: The HTTP process stops accepting requests before closing its pool; the worker exits its claim loop before draining the pool.
-  recovery: Persisted pending operations are completed by a later worker instance; expired leases are reclaimed, provider calls use a durable cancellation identity, failed attempts release the order for a new versioned request, and same-key client retries replay the original operation.
+  recovery: Persisted pending operations are completed by a later worker instance; expired leases are reclaimed; repeated provider delivery converges through a durable cancellation identity; explicit provider rejection releases the order; and unknown outcomes remain pending in a quarantined reconciliation state.
 
 quality:
   commands:
@@ -131,6 +131,7 @@ quality:
     - Restart evidence replaces the application pool and service instance but does not reboot the PostgreSQL server.
     - No point-in-time recovery, backup restore, failover, replication, or schema rollback drill is executed.
     - The outbox provider simulation proves idempotent convergence, not exactly-once external delivery.
+    - Reconciliation-required work is quarantined and audited, but no operator resolution command or scheduled provider-status query is implemented yet.
     - Performance, lock contention at scale, connection-pool sizing, and long-running worker behavior are not measured.
     - The shared UI remains source and HTTP tested rather than browser-automated in this pilot.
 
